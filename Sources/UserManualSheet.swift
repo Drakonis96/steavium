@@ -32,6 +32,7 @@ struct UserManualSheet: View {
                             L.manualPart2Step1.resolve(in: language),
                             L.manualPart2Step2.resolve(in: language),
                             L.manualPart2Step3.resolve(in: language),
+                            L.manualPart2Step4.resolve(in: language),
                         ]
                     )
 

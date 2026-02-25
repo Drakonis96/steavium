@@ -21,6 +21,7 @@ actor SteamManager {
     private let fileManager = FileManager.default
     private let bundledScriptNames = [
         "common.sh",
+        "install_prerequisites.sh",
         "install_runtime.sh",
         "setup_steam.sh",
         "launch_steam.sh",
@@ -380,6 +381,19 @@ actor SteamManager {
             return messagePrefix
         }
         return ([messagePrefix] + logs).joined(separator: "\n")
+    }
+
+    func installPrerequisites() async throws -> String {
+        try prepareDirectories()
+        let script = try materializeScript(named: "install_prerequisites.sh")
+
+        let result = try await ShellRunner.runAsync(
+            executable: "/bin/bash",
+            arguments: [script.path],
+            environment: ["STEAVIUM_HOME": appHome.path]
+        )
+
+        return result.output
     }
 
     func installRuntime() async throws -> String {

@@ -31,6 +31,8 @@ private actor MockSteamManager: SteamManaging {
         .empty
     }
 
+    func installPrerequisites() async throws -> String { "ok" }
+
     func installRuntime() async throws -> String { "ok" }
 
     func setupSteam(gameLibraryPath: String?) async throws -> String { "ok" }

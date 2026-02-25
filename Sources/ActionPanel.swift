@@ -51,10 +51,18 @@ struct ActionPanel: View {
                     .font(.subheadline.weight(.semibold))
                 LazyVGrid(columns: actionColumns, alignment: .leading, spacing: 10) {
                     ActionTileButton(
+                        title: L.installPrerequisites.resolve(in: language),
+                        icon: "shippingbox",
+                        tone: .primary,
+                        isDisabled: viewModel.isBusy
+                    ) {
+                        viewModel.installPrerequisites()
+                    }
+                    ActionTileButton(
                         title: L.installRuntime.resolve(in: language),
                         icon: "square.and.arrow.down",
                         tone: .primary,
-                        isDisabled: viewModel.isBusy
+                        isDisabled: viewModel.isBusy || !viewModel.prerequisitesInstalled
                     ) {
                         viewModel.installRuntime()
                     }

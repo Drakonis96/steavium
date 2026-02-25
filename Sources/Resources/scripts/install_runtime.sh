@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Ensure Homebrew paths are available (GUI apps do not inherit shell PATH)
+for p in /opt/homebrew/bin /opt/homebrew/sbin /usr/local/bin /usr/local/sbin; do
+  [[ -d "$p" ]] && [[ ":$PATH:" != *":$p:"* ]] && export PATH="$p:$PATH"
+done
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=common.sh
 source "$SCRIPT_DIR/common.sh"
@@ -8,7 +13,7 @@ source "$SCRIPT_DIR/common.sh"
 ensure_dirs
 
 if ! command -v brew >/dev/null 2>&1; then
-  echo "Homebrew no detectado. Instala Homebrew desde https://brew.sh y vuelve a intentarlo."
+  echo "Homebrew no detectado. Usa el boton 'Instalar Prerequisitos' primero."
   exit 1
 fi
 

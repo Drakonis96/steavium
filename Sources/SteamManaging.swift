@@ -7,6 +7,7 @@ protocol SteamManaging: Actor {
     func gameLibraryState(forceRefresh: Bool) -> GameLibraryState
     func runtimePreflightReport() -> RuntimePreflightReport
 
+    func installPrerequisites() async throws -> String
     func installRuntime() async throws -> String
     func setupSteam(gameLibraryPath: String?) async throws -> String
     func launchSteamDetached(

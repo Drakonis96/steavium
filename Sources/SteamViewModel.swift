@@ -45,6 +45,7 @@ final class SteamViewModel: ObservableObject {
     @Published var profileEditor: GameProfileEditorState = .empty
     @Published var preflightReport: RuntimePreflightReport = .empty
     @Published var isSteamRunning: Bool = false
+    @Published var prerequisitesInstalled: Bool = false
 
     private let manager: any SteamManaging
     private static let graphicsBackendDefaultsKey = "steavium.graphics_backend"
@@ -86,6 +87,7 @@ final class SteamViewModel: ObservableObject {
         Task {
             await refreshEnvironment()
             await refreshPreflightReport()
+            await refreshPrerequisitesStatus()
             await refreshGameLibraryState(forceRefresh: true)
         }
 
@@ -121,6 +123,19 @@ final class SteamViewModel: ObservableObject {
         Task {
             await refreshPreflightReport()
             statusText = L.preflightRefreshed.resolve(in: language)
+        }
+    }
+
+    func installPrerequisites() {
+        runAction(
+            title: L.prerequisitesInstallation.resolve(in: language),
+            refreshPreflightAfterCompletion: true
+        ) { [weak self] manager in
+            let output = try await manager.installPrerequisites()
+            await MainActor.run {
+                self?.prerequisitesInstalled = true
+            }
+            return output
         }
     }
 
@@ -480,6 +495,11 @@ final class SteamViewModel: ObservableObject {
 
     private func refreshPreflightReport() async {
         preflightReport = await manager.runtimePreflightReport()
+    }
+
+    private func refreshPrerequisitesStatus() async {
+        let report = await manager.runtimePreflightReport()
+        prerequisitesInstalled = report.check(for: .homebrew)?.status == .ok
     }
 
     private func launchSteamNow(runningPolicy: SteamRunningPolicy, backend: GraphicsBackend) {

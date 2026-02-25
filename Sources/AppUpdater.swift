@@ -67,7 +67,7 @@ private struct GitHubAsset: Decodable {
 @MainActor
 final class AppUpdater: ObservableObject {
 
-    static let currentVersion = "0.0.3"
+    static let currentVersion = "0.0.4"
     static let repoOwner = "Drakonis96"
     static let repoName = "steavium"
 

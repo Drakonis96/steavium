@@ -256,6 +256,10 @@ enum L {
 
     // MARK: Action buttons
 
+    static let installPrerequisites = LocalizedEntry(
+        english: "Install Prerequisites",
+        spanish: "Instalar Prerequisitos"
+    )
     static let installRuntime = LocalizedEntry(
         english: "Install Runtime",
         spanish: "Instalar Runtime"
@@ -511,6 +515,10 @@ enum L {
 
     // MARK: ViewModel action titles
 
+    static let prerequisitesInstallation = LocalizedEntry(
+        english: "Prerequisites installation",
+        spanish: "Instalacion de prerequisitos"
+    )
     static let runtimeInstallation = LocalizedEntry(
         english: "Runtime installation",
         spanish: "Instalacion de runtime"
@@ -801,16 +809,20 @@ enum L {
         spanish: "Ejecuta estos botones de izquierda a derecha para una configuracion limpia."
     )
     static let manualPart2Step1 = LocalizedEntry(
-        english: "1) Install Runtime: installs and validates Wine runtime components.",
-        spanish: "1) Instalar Runtime: instala y valida los componentes del runtime de Wine."
+        english: "1) Install Prerequisites: installs Homebrew and other required tools.",
+        spanish: "1) Instalar Prerequisitos: instala Homebrew y otras herramientas necesarias."
     )
     static let manualPart2Step2 = LocalizedEntry(
-        english: "2) Set Up Steam: creates or updates the Steam Windows environment.",
-        spanish: "2) Preparar Steam: crea o actualiza el entorno de Steam para Windows."
+        english: "2) Install Runtime: installs and validates Wine runtime components.",
+        spanish: "2) Instalar Runtime: instala y valida los componentes del runtime de Wine."
     )
     static let manualPart2Step3 = LocalizedEntry(
-        english: "3) Launch Steam: opens Steam inside Steavium. Log in and let updates finish.",
-        spanish: "3) Lanzar Steam: abre Steam dentro de Steavium. Inicia sesion y deja terminar actualizaciones."
+        english: "3) Set Up Steam: creates or updates the Steam Windows environment.",
+        spanish: "3) Preparar Steam: crea o actualiza el entorno de Steam para Windows."
+    )
+    static let manualPart2Step4 = LocalizedEntry(
+        english: "4) Launch Steam: opens Steam inside Steavium. Log in and let updates finish.",
+        spanish: "4) Lanzar Steam: abre Steam dentro de Steavium. Inicia sesion y deja terminar actualizaciones."
     )
     static let manualPart3Title = LocalizedEntry(
         english: "Part 3. Library management",
