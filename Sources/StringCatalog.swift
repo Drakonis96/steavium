@@ -939,5 +939,70 @@ enum L {
         english: "Keep Wine prefix and game data",
         spanish: "Conservar prefix de Wine y datos de juegos"
     )
+
+    // MARK: Auto-updater
+
+    static let checkForUpdates = LocalizedEntry(
+        english: "Check for Updates",
+        spanish: "Buscar actualizaciones"
+    )
+    static let updateAvailable = LocalizedEntry(
+        english: "Update Available",
+        spanish: "Actualizacion disponible"
+    )
+    static func updateNewVersion(_ version: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "A new version (\(version)) is available.",
+            spanish: "Una nueva version (\(version)) esta disponible."
+        )
+    }
+    static let updateNow = LocalizedEntry(
+        english: "Update Now",
+        spanish: "Actualizar ahora"
+    )
+    static let updateChecking = LocalizedEntry(
+        english: "Checking for updates…",
+        spanish: "Buscando actualizaciones…"
+    )
+    static let updateNoUpdate = LocalizedEntry(
+        english: "You're up to date!",
+        spanish: "¡Estas al dia!"
+    )
+    static let updateDownloading = LocalizedEntry(
+        english: "Downloading update…",
+        spanish: "Descargando actualizacion…"
+    )
+    static let updateInstalling = LocalizedEntry(
+        english: "Installing update…",
+        spanish: "Instalando actualizacion…"
+    )
+    static func updateInstalled(_ version: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "Version \(version) installed! Relaunch to apply.",
+            spanish: "¡Version \(version) instalada! Reinicia para aplicar."
+        )
+    }
+    static let updateRelaunch = LocalizedEntry(
+        english: "Relaunch",
+        spanish: "Reiniciar"
+    )
+    static let updateFailed = LocalizedEntry(
+        english: "Update failed",
+        spanish: "La actualizacion fallo"
+    )
+    static let updateRetry = LocalizedEntry(
+        english: "Retry",
+        spanish: "Reintentar"
+    )
+    static let releaseNotes = LocalizedEntry(
+        english: "Release Notes",
+        spanish: "Notas de la version"
+    )
+    static func currentVersionLabel(_ version: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "Current version: \(version)",
+            spanish: "Version actual: \(version)"
+        )
+    }
 }
 // swiftlint:enable type_body_length

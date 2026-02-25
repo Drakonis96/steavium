@@ -3,10 +3,12 @@ import SwiftUI
 
 struct ContentView: View {
     @ObservedObject var viewModel: SteamViewModel
+    @StateObject private var updater = AppUpdater()
     @State private var showingStopSteamDialog: Bool = false
     @State private var showingDataWipeDialog: Bool = false
     @State private var showingManualDialog: Bool = false
     @State private var showingUninstallDialog: Bool = false
+    @State private var showingUpdateDialog: Bool = false
     @State private var uninstallKeepData: Bool = false
     @State private var showingLeftSidebar: Bool = true
     @State private var showingRightSidebar: Bool = true
@@ -72,6 +74,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingManualDialog) {
             UserManualSheet(language: language, isPresented: $showingManualDialog)
+        }
+        .sheet(isPresented: $showingUpdateDialog) {
+            UpdateSheet(updater: updater, isPresented: $showingUpdateDialog, language: language)
         }
         .alert(
             L.uninstallTitle.resolve(in: language),
@@ -190,7 +195,25 @@ struct ContentView: View {
                         .buttonStyle(ResponsiveBorderedStyle())
                         .disabled(viewModel.isBusy)
 
+                        Button {
+                            showingUpdateDialog = true
+                        } label: {
+                            Image(systemName: "arrow.triangle.2.circlepath.circle")
+                                .font(.system(size: 16))
+                        }
+                        .buttonStyle(ResponsiveBorderedStyle())
+                        .help(L.checkForUpdates.resolve(in: language))
+                        .disabled(viewModel.isBusy)
+
                         Menu {
+                            Button {
+                                showingUpdateDialog = true
+                            } label: {
+                                Label(L.checkForUpdates.resolve(in: language), systemImage: "arrow.triangle.2.circlepath")
+                            }
+
+                            Divider()
+
                             Button(role: .destructive) {
                                 uninstallKeepData = false
                                 showingUninstallDialog = true
