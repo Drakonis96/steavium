@@ -1,5 +1,95 @@
 import Foundation
 
+// MARK: - Log Entry
+
+struct LogEntry: Identifiable {
+    let id = UUID()
+    let text: String
+    let category: Category
+
+    enum BaseCategory {
+        case normal
+        case error
+        case success
+        case progress
+    }
+
+    enum Category {
+        case normal
+        case header(BaseCategory)
+        case error
+        case success
+        case progress
+    }
+
+    /// Classify the whole section based on its header.
+    static func classify(section: String, body: String) -> BaseCategory {
+        let lower = section.lowercased()
+        if lower.contains("error") || lower.contains("fail") || lower.contains("fallo") {
+            return .error
+        }
+        if lower.contains("completed") || lower.contains("completada")
+            || lower.contains("success") || lower.contains("detected")
+            || lower.contains("steam detected") {
+            return .success
+        }
+        if lower.contains("install") || lower.contains("setup") || lower.contains("configurar")
+            || lower.contains("runtime") || lower.contains("prerequisites")
+            || lower.contains("preflight") || lower.contains("wipe")
+            || lower.contains("export") || lower.contains("in progress")
+            || lower.contains("en curso") || lower.contains("launch")
+            || lower.contains("lanzamiento") {
+            return .progress
+        }
+        return .normal
+    }
+
+    /// Classify an individual line, potentially overriding the section fallback.
+    static func classifyLine(_ line: String, fallback: BaseCategory) -> Category {
+        let lower = line.lowercased()
+        // Error patterns
+        if lower.contains("error") || lower.contains("fail") || lower.contains("fallo")
+            || lower.contains("exception") || lower.contains("crash")
+            || lower.contains("terminated") || lower.contains("not found")
+            || lower.contains("no se encontr") || lower.contains("missing")
+            || lower.contains("could not") || lower.contains("unable to")
+            || lower.contains("invalid") {
+            return .error
+        }
+        // Success patterns
+        if lower.contains("complete") || lower.contains("completad")
+            || lower.contains("success") || lower.contains("ready")
+            || lower.contains("preparado") || lower.contains("listo")
+            || lower.contains("done") || lower.contains("verified")
+            || lower.contains("installed") || lower.contains("up and running")
+            || lower.contains("nothing to do") || lower.contains("verification complete")
+            || lower.contains("actualización completa") || lower.contains("iniciando steam") {
+            return .success
+        }
+        // Progress patterns
+        if lower.contains("downloading") || lower.contains("descargando")
+            || lower.contains("installing") || lower.contains("instalando")
+            || lower.contains("extracting") || lower.contains("extrayendo")
+            || lower.contains("checking") || lower.contains("verificando")
+            || lower.contains("buscando") || lower.contains("scanning")
+            || lower.contains("escaneando") || lower.contains("warming")
+            || lower.contains("prewarm") || lower.contains("[media]")
+            || lower.contains("[display]") || lower.contains("[hardware]")
+            || lower.contains("[shader") || lower.contains("[tuning]")
+            || lower.contains("[steam]") || lower.contains("bootstrap")
+            || lower.contains("reintento") || lower.contains("retry") {
+            return .progress
+        }
+
+        switch fallback {
+        case .error: return .error
+        case .success: return .success
+        case .progress: return .progress
+        case .normal: return .normal
+        }
+    }
+}
+
 enum GraphicsBackend: String, CaseIterable, Sendable {
     case d3dmetal
     case dxvk

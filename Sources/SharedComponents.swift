@@ -111,6 +111,7 @@ struct StatusRow: View {
 
 enum ActionTone {
     case primary
+    case success
     case neutral
     case destructive
 
@@ -121,6 +122,8 @@ enum ActionTone {
         switch self {
         case .primary:
             return Color.accentColor.opacity(0.18)
+        case .success:
+            return Color.green.opacity(0.18)
         case .neutral:
             return Color.secondary.opacity(0.1)
         case .destructive:
@@ -135,6 +138,8 @@ enum ActionTone {
         switch self {
         case .primary:
             return Color.accentColor.opacity(0.35)
+        case .success:
+            return Color.green.opacity(0.35)
         case .neutral:
             return Color.secondary.opacity(0.2)
         case .destructive:
@@ -143,7 +148,13 @@ enum ActionTone {
     }
 
     func foreground(disabled: Bool) -> Color {
-        disabled ? .secondary : .primary
+        if disabled { return .secondary }
+        switch self {
+        case .success:
+            return .green
+        default:
+            return .primary
+        }
     }
 }
 

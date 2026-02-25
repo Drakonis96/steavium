@@ -717,9 +717,9 @@ if is_crossover_mode; then
 
   # Pre-warm Wine and shader cache in parallel to minimise startup latency.
   prewarm_wine_prefix &
-  local prewarm_pid=$!
+  _prewarm_pid=$!
   warmup_shader_cache &
-  wait "$prewarm_pid" 2>/dev/null || true
+  wait "$_prewarm_pid" 2>/dev/null || true
 
   run_bootstrap_until_running \
     is_crossover_steam_running \

@@ -457,22 +457,31 @@ actor SteamManager {
         environment["STEAVIUM_RECOMMENDED_DXVK_COMPILER_THREADS"] = "\(hardwareProfile.recommendedDXVKCompilerThreads)"
         environment["STEAVIUM_RECOMMENDED_FPS_CAP"] = hardwareProfile.recommendedFPSCap.map(String.init) ?? ""
         environment["STEAVIUM_DISPLAY_REFRESH_RATE"] = "\(hardwareProfile.displayRefreshRate)"
-        let result = try await ShellRunner.runAsync(
+
+        // Launch the script directly as a child process (fire-and-forget)
+        // instead of using --detached + nohup. This keeps Wine in the
+        // app's GUI session so its windows are visible — nohup'd workers
+        // reparented to launchd can lose window-server access on macOS,
+        // which causes Steam's window to never appear when the app is
+        // installed from a DMG.
+        let liveLogURL = logsPath.appendingPathComponent("steam-live.log")
+        try ShellRunner.runFireAndForget(
             executable: "/bin/bash",
             arguments: [
                 script.path,
-                "--detached",
                 "--backend", graphicsBackend.rawValue,
                 "--if-running", runningPolicy.rawValue
             ],
-            environment: environment
+            environment: environment,
+            outputFile: liveLogURL
         )
 
+        let launchMessage = "Steam launched. Log: \(liveLogURL.path)"
         if syncLogs.isEmpty {
-            return result.output
+            return launchMessage
         }
         let syncOutput = syncLogs.joined(separator: "\n")
-        return "[per-game]\n\(syncOutput)\n\n\(result.output)"
+        return "[per-game]\n\(syncOutput)\n\n\(launchMessage)"
     }
 
     func stopSteamCompletely() async throws -> String {
@@ -563,6 +572,15 @@ actor SteamManager {
 
     private func scriptEnvironment(gameLibraryPath: String?) -> [String: String] {
         var environment: [String: String] = ["STEAVIUM_HOME": appHome.path]
+
+        // Ensure Homebrew and common binary paths are always reachable,
+        // even when the app is launched from Finder (which provides a
+        // minimal PATH like /usr/bin:/bin:/usr/sbin:/sbin).
+        let currentPath = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
+        if !currentPath.contains("/opt/homebrew/bin") {
+            environment["PATH"] = "/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:\(currentPath)"
+        }
+
         if let gameLibraryPath {
             let trimmed = gameLibraryPath.trimmingCharacters(in: .whitespacesAndNewlines)
             if !trimmed.isEmpty {

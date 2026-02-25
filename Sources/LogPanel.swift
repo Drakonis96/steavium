@@ -18,17 +18,26 @@ struct LogPanel: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-                        if viewModel.logs.isEmpty {
+                        if viewModel.logEntries.isEmpty {
                             Text(L.noRunsYet.resolve(in: language))
                                 .font(.system(size: 12, weight: .regular, design: .monospaced))
                                 .foregroundStyle(.secondary)
                                 .padding(10)
                         } else {
-                            Text(viewModel.logs)
-                                .font(.system(size: 12, weight: .regular, design: .monospaced))
-                                .textSelection(.enabled)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(10)
+                            LazyVStack(alignment: .leading, spacing: 0) {
+                                ForEach(viewModel.logEntries) { entry in
+                                    if entry.text.isEmpty {
+                                        Spacer().frame(height: 6)
+                                    } else {
+                                        Text(entry.text)
+                                            .font(.system(size: 12, weight: fontWeight(for: entry.category), design: .monospaced))
+                                            .foregroundStyle(color(for: entry.category))
+                                            .textSelection(.enabled)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                    }
+                                }
+                            }
+                            .padding(10)
                         }
 
                         // Invisible anchor for auto-scroll
@@ -40,7 +49,7 @@ struct LogPanel: View {
                 .frame(minHeight: 280, maxHeight: .infinity)
                 .background(.black.opacity(0.05))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
-                .onChange(of: viewModel.logs) {
+                .onChange(of: viewModel.logEntries.count) {
                     withAnimation(.easeOut(duration: 0.15)) {
                         proxy.scrollTo("log-bottom", anchor: .bottom)
                     }
@@ -78,6 +87,33 @@ struct LogPanel: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.launchPhase != nil)
+    }
+
+    private func color(for category: LogEntry.Category) -> Color {
+        switch category {
+        case .normal:
+            return .primary
+        case .header(let base):
+            switch base {
+            case .error: return .red
+            case .success: return Color.green
+            case .progress: return Color.orange
+            case .normal: return .primary
+            }
+        case .error:
+            return .red
+        case .success:
+            return Color.green
+        case .progress:
+            return Color.orange
+        }
+    }
+
+    private func fontWeight(for category: LogEntry.Category) -> Font.Weight {
+        switch category {
+        case .header: return .bold
+        default: return .regular
+        }
     }
 
     private func copyLogsToClipboard() {

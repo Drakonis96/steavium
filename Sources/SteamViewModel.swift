@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 final class SteamViewModel: ObservableObject {
     @Published var environment: SteamEnvironment = .empty
     @Published var logs: String = ""
+    @Published var logEntries: [LogEntry] = []
     @Published var statusText: String = "Ready."
     @Published var isBusy: Bool = false
     @Published var showingSteamRunningDialog: Bool = false
@@ -297,6 +298,7 @@ final class SteamViewModel: ObservableObject {
 
     func clearLogs() {
         logs = ""
+        logEntries = []
     }
 
     func chooseGameLibraryPath() {
@@ -770,14 +772,23 @@ final class SteamViewModel: ObservableObject {
     private func appendLog(section: String, output: String) {
         let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
         let body = trimmed.isEmpty ? L.noOutput.resolve(in: language) : trimmed
-        logs += """
-        [\(timestamp())] \(section)
-        \(body)
-
-        """
+        let header = "[\(timestamp())] \(section)"
+        logs += "\(header)\n\(body)\n\n"
 
         if logs.count > 80_000 {
             logs = String(logs.suffix(80_000))
+        }
+
+        let category = LogEntry.classify(section: section, body: body)
+        logEntries.append(LogEntry(text: header, category: .header(category)))
+        for line in body.components(separatedBy: .newlines) where !line.isEmpty {
+            logEntries.append(LogEntry(text: line, category: LogEntry.classifyLine(line, fallback: category)))
+        }
+        logEntries.append(LogEntry(text: "", category: .normal))
+
+        // Cap entries to prevent memory growth
+        if logEntries.count > 4000 {
+            logEntries = Array(logEntries.suffix(3000))
         }
     }
 

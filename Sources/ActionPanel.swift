@@ -52,24 +52,24 @@ struct ActionPanel: View {
                 LazyVGrid(columns: actionColumns, alignment: .leading, spacing: 10) {
                     ActionTileButton(
                         title: L.installPrerequisites.resolve(in: language),
-                        icon: "shippingbox",
-                        tone: .primary,
+                        icon: viewModel.prerequisitesInstalled ? "checkmark.circle.fill" : "shippingbox",
+                        tone: viewModel.prerequisitesInstalled ? .success : .primary,
                         isDisabled: viewModel.isBusy
                     ) {
                         viewModel.installPrerequisites()
                     }
                     ActionTileButton(
                         title: L.installRuntime.resolve(in: language),
-                        icon: "square.and.arrow.down",
-                        tone: .primary,
+                        icon: viewModel.environment.wine64Path != nil ? "checkmark.circle.fill" : "square.and.arrow.down",
+                        tone: viewModel.environment.wine64Path != nil ? .success : .primary,
                         isDisabled: viewModel.isBusy || !viewModel.prerequisitesInstalled
                     ) {
                         viewModel.installRuntime()
                     }
                     ActionTileButton(
                         title: L.setUpSteam.resolve(in: language),
-                        icon: "wrench.and.screwdriver",
-                        tone: .primary,
+                        icon: viewModel.setupCompleted ? "checkmark.circle.fill" : "wrench.and.screwdriver",
+                        tone: viewModel.setupCompleted ? .success : .primary,
                         isDisabled: viewModel.isBusy || viewModel.environment.wine64Path == nil
                     ) {
                         viewModel.setupSteam()
