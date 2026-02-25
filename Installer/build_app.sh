@@ -16,12 +16,12 @@ echo "=== Steavium Build Script ==="
 echo ""
 
 # ── 1. Clean previous build ─────────────────────────────────────────────────
-echo "[1/6] Cleaning previous build..."
+echo "[1/7] Cleaning previous build..."
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
 # ── 2. Build with Swift Package Manager (Release) ───────────────────────────
-echo "[2/6] Building Steavium (Release, arm64)..."
+echo "[2/7] Building Steavium (Release, arm64)..."
 cd "$PROJECT_ROOT"
 swift build -c release --arch arm64 2>&1
 
@@ -33,7 +33,7 @@ fi
 echo "    Binary: $BINARY_PATH"
 
 # ── 3. Create .app bundle structure ─────────────────────────────────────────
-echo "[3/6] Creating .app bundle structure..."
+echo "[3/7] Creating .app bundle structure..."
 mkdir -p "$MACOS_DIR"
 mkdir -p "$RESOURCES_DIR"
 
@@ -45,7 +45,7 @@ chmod +x "$MACOS_DIR/Steavium"
 cp "$SCRIPT_DIR/Info.plist" "$CONTENTS/Info.plist"
 
 # ── 4. Generate .icns from logo.png ─────────────────────────────────────────
-echo "[4/6] Generating app icon (AppIcon.icns)..."
+echo "[4/7] Generating app icon (AppIcon.icns)..."
 LOGO_SOURCE="$PROJECT_ROOT/Sources/Resources/logo.png"
 ICONSET_DIR="$BUILD_DIR/AppIcon.iconset"
 
@@ -74,7 +74,7 @@ else
 fi
 
 # ── 5. Copy bundled resources ────────────────────────────────────────────────
-echo "[5/6] Copying bundled resources..."
+echo "[5/7] Copying bundled resources..."
 
 # SPM puts resources in Steavium_Steavium.bundle inside the binary directory
 BUNDLE_RESOURCE_DIR="$(dirname "$BINARY_PATH")/Steavium_Steavium.bundle"
@@ -86,11 +86,38 @@ else
   echo "    The app may not find its scripts and logo at runtime."
 fi
 
-# ── 6. Done ──────────────────────────────────────────────────────────────────
-echo "[6/6] Build complete!"
+# ── 6. Code-sign the .app bundle ─────────────────────────────────────────────
+echo "[6/7] Code-signing the app bundle..."
+
+# Use a Developer ID identity if available; otherwise fall back to ad-hoc.
+if security find-identity -v -p codesigning | grep -q '"Developer ID Application'; then
+  IDENTITY="Developer ID Application"
+  echo "    Signing with: $IDENTITY"
+else
+  IDENTITY="-"   # ad-hoc signature
+  echo "    No Developer ID found — using ad-hoc signature."
+  echo "    (Users who download this app may need to run:"
+  echo "      xattr -cr /Applications/Steavium.app )"
+fi
+
+# Sign embedded frameworks / bundles first (inside-out)
+find "$APP_BUNDLE" -type d -name '*.bundle' -o -name '*.framework' | while read -r item; do
+  codesign --force --sign "$IDENTITY" --timestamp "$item" 2>/dev/null || true
+done
+
+# Sign the main bundle (deep as a safety net)
+codesign --force --deep --sign "$IDENTITY" --timestamp --options runtime "$APP_BUNDLE"
+echo "    Code-signing complete."
+
+# ── 7. Done ──────────────────────────────────────────────────────────────────
 echo ""
 echo "    App bundle: $APP_BUNDLE"
 echo "    Size: $(du -sh "$APP_BUNDLE" | cut -f1)"
 echo ""
+if [[ "$IDENTITY" == "-" ]]; then
+  echo "NOTE: The app is ad-hoc signed.  Distributed copies will trigger"
+  echo "      Gatekeeper.  Users must run:  xattr -cr /Applications/Steavium.app"
+  echo ""
+fi
 echo "You can now run:  open \"$APP_BUNDLE\""
 echo "Or create a DMG:  bash Installer/create_dmg.sh"

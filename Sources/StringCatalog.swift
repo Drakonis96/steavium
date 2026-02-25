@@ -578,6 +578,10 @@ enum L {
         english: "Logs copied to clipboard.",
         spanish: "Logs copiados al portapapeles."
     )
+    static let liveLogSuffix = LocalizedEntry(
+        english: "live",
+        spanish: "en vivo"
+    )
 
     static let completeSteamShutdown = LocalizedEntry(
         english: "Complete Steam shutdown",
@@ -645,6 +649,27 @@ enum L {
         english: "None detected",
         spanish: "Ninguno detectado"
     )
+
+    // MARK: CPU layout
+
+    static func cpuLayoutPE(_ perfCores: Int, _ effCores: Int, _ logicalCores: Int) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "P\(perfCores) / E\(effCores) (\(logicalCores) logical)",
+            spanish: "P\(perfCores) / E\(effCores) (\(logicalCores) logicos)"
+        )
+    }
+    static func cpuLayoutCores(_ cores: Int, _ logicalCores: Int) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "\(cores) cores (\(logicalCores) logical)",
+            spanish: "\(cores) nucleos (\(logicalCores) logicos)"
+        )
+    }
+    static func cpuLayoutLogical(_ logicalCores: Int) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "\(logicalCores) logical",
+            spanish: "\(logicalCores) logicos"
+        )
+    }
 
     // MARK: Model titles
 
@@ -918,6 +943,25 @@ enum L {
     static let uninstallSteavium = LocalizedEntry(
         english: "Uninstall Steavium",
         spanish: "Desinstalar Steavium"
+    )
+
+    // MARK: Menu bar
+
+    static let menuBarSteamRunning = LocalizedEntry(
+        english: "Steam is running",
+        spanish: "Steam esta en ejecucion"
+    )
+    static let menuBarSteamNotRunning = LocalizedEntry(
+        english: "Steam is not running",
+        spanish: "Steam no esta en ejecucion"
+    )
+    static let menuBarShowSteavium = LocalizedEntry(
+        english: "Show Steavium",
+        spanish: "Mostrar Steavium"
+    )
+    static let menuBarQuit = LocalizedEntry(
+        english: "Quit Steavium",
+        spanish: "Salir de Steavium"
     )
     static let uninstallTitle = LocalizedEntry(
         english: "Uninstall Steavium?",

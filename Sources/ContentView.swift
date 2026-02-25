@@ -189,10 +189,14 @@ struct ContentView: View {
                         .frame(width: 130)
                         .disabled(viewModel.isBusy)
 
-                        Button(L.openManual.resolve(in: language)) {
+                        Button {
                             showingManualDialog = true
+                        } label: {
+                            Image(systemName: "book.fill")
+                                .font(.system(size: 16))
                         }
                         .buttonStyle(ResponsiveBorderedStyle())
+                        .help(L.openManual.resolve(in: language))
                         .disabled(viewModel.isBusy)
 
                         Button {

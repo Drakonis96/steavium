@@ -70,7 +70,7 @@ struct ActionPanel: View {
                         title: L.launchSteam.resolve(in: language),
                         icon: "play.circle",
                         tone: .primary,
-                        isDisabled: viewModel.isBusy || viewModel.environment.wine64Path == nil || !viewModel.environment.steamInstalled
+                        isDisabled: viewModel.isBusy || viewModel.environment.wine64Path == nil || !viewModel.environment.steamInstalled || !viewModel.setupCompleted
                     ) {
                         viewModel.launchSteam()
                     }

@@ -104,6 +104,18 @@ hdiutil convert "$TEMP_DMG" -format UDZO -imagekey zlib-level=9 -o "$DMG_PATH" -
 rm -f "$TEMP_DMG"
 rm -rf "$DMG_STAGING"
 
+# ── 6. Sign the DMG (if Developer ID is available) ──────────────────────────
+if security find-identity -v -p codesigning | grep -q '"Developer ID Application'; then
+  echo "[5/5] Signing DMG with Developer ID..."
+  codesign --force --sign "Developer ID Application" --timestamp "$DMG_PATH"
+  echo "    DMG signed."
+else
+  echo ""
+  echo "NOTE: No Developer ID found — DMG is unsigned."
+  echo "      Users who download this DMG may need to run:"
+  echo "        xattr -cr /Applications/Steavium.app"
+fi
+
 echo ""
 echo "DMG installer created: $DMG_PATH"
 echo "Size: $(du -sh "$DMG_PATH" | cut -f1)"

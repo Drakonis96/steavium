@@ -24,6 +24,11 @@ final class SteamViewModel: ObservableObject {
             }
         }
     }
+    @Published var setupCompleted: Bool = false {
+        didSet {
+            UserDefaults.standard.set(setupCompleted, forKey: Self.setupCompletedDefaultsKey)
+        }
+    }
     @Published var connectedGamepads: [GamepadDeviceInfo] = []
     @Published var launchPhase: LaunchPhase?
     @Published var graphicsBackend: GraphicsBackend = .auto {
@@ -39,11 +44,13 @@ final class SteamViewModel: ObservableObject {
     }
     @Published var profileEditor: GameProfileEditorState = .empty
     @Published var preflightReport: RuntimePreflightReport = .empty
+    @Published var isSteamRunning: Bool = false
 
     private let manager: any SteamManaging
     private static let graphicsBackendDefaultsKey = "steavium.graphics_backend"
     private static let gameLibraryDefaultsKey = "steavium.game_library_path"
     private static let languageDefaultsKey = "steavium.language"
+    private static let setupCompletedDefaultsKey = "steavium.setup_completed"
     private static let logTimestampFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
@@ -52,6 +59,7 @@ final class SteamViewModel: ObservableObject {
     private var pendingLaunchBackend: GraphicsBackend?
     private var gamepadMonitor: GamepadMonitor?
     private var profilesByAppID: [Int: GameCompatibilityProfile] = [:]
+    private var steamStatusTask: Task<Void, Never>?
 
     init(manager: any SteamManaging = SteamManager()) {
         self.manager = manager
@@ -64,6 +72,7 @@ final class SteamViewModel: ObservableObject {
            let backend = GraphicsBackend(rawValue: rawBackend) {
             graphicsBackend = backend
         }
+        setupCompleted = UserDefaults.standard.bool(forKey: Self.setupCompletedDefaultsKey)
         if let storedLibraryPath = UserDefaults.standard.string(forKey: Self.gameLibraryDefaultsKey) {
             gameLibraryPath = storedLibraryPath
         }
@@ -79,10 +88,27 @@ final class SteamViewModel: ObservableObject {
             await refreshPreflightReport()
             await refreshGameLibraryState(forceRefresh: true)
         }
+
+        startSteamStatusPolling()
+    }
+
+    private func startSteamStatusPolling() {
+        steamStatusTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                let running = await self.manager.isSteamRunning()
+                self.isSteamRunning = running
+                try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
+            }
+        }
     }
 
     func refreshEnvironment() async {
         environment = await manager.snapshot()
+        // Auto-detect setup completion for users who set up before this check was added
+        if !setupCompleted && environment.steamInstalled && environment.wine64Path != nil {
+            setupCompleted = true
+        }
     }
 
     func refreshInstalledGames(forceRefresh: Bool = true) {
@@ -118,8 +144,12 @@ final class SteamViewModel: ObservableObject {
 
     func setupSteam() {
         let gameLibraryPath = selectedGameLibraryPath
-        runAction(title: L.steamSetup.resolve(in: language)) { manager in
-            try await manager.setupSteam(gameLibraryPath: gameLibraryPath)
+        runAction(title: L.steamSetup.resolve(in: language)) { [weak self] manager in
+            let output = try await manager.setupSteam(gameLibraryPath: gameLibraryPath)
+            await MainActor.run {
+                self?.setupCompleted = true
+            }
+            return output
         }
     }
 
@@ -597,7 +627,7 @@ final class SteamViewModel: ObservableObject {
         if let (content, newSize) = newLogContent {
             lastLogSize = newSize
             if !content.isEmpty {
-                appendLog(section: "\(title) [live]", output: content)
+                appendLog(section: "\(title) [\(L.liveLogSuffix.resolve(in: language))]", output: content)
             }
         }
     }

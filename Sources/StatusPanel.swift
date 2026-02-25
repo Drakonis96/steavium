@@ -76,11 +76,7 @@ struct StatusPanel: View {
     }
 
     private var cpuCoreSummary: String {
-        let summary = viewModel.environment.hardwareProfile.cpuCoreLayout.summary
-        if summary == "Not detected" {
-            return L.notDetected.resolve(in: language)
-        }
-        return summary
+        viewModel.environment.hardwareProfile.cpuCoreLayout.summary(in: language)
     }
 
     private var autoTuningSummary: String {

@@ -170,6 +170,19 @@ struct CPUCoreLayout: Sendable, Equatable {
         }
         return "Not detected"
     }
+
+    func summary(in language: AppLanguage) -> String {
+        if performanceCores > 0 && efficiencyCores > 0 {
+            return L.cpuLayoutPE(performanceCores, efficiencyCores, logicalCores).resolve(in: language)
+        }
+        if performanceCores > 0 {
+            return L.cpuLayoutCores(performanceCores, logicalCores).resolve(in: language)
+        }
+        if logicalCores > 0 {
+            return L.cpuLayoutLogical(logicalCores).resolve(in: language)
+        }
+        return L.notDetected.resolve(in: language)
+    }
 }
 
 struct HardwareProfile: Sendable {
