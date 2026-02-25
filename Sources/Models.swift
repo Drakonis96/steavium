@@ -139,6 +139,27 @@ enum GraphicsBackend: String, CaseIterable, Sendable {
     }
 }
 
+enum WineMode: String, CaseIterable, Sendable {
+    case auto
+    case crossover
+    case wine
+
+    func title(in language: AppLanguage) -> String {
+        switch self {
+        case .auto:
+            return "Auto"
+        case .crossover:
+            return "CrossOver"
+        case .wine:
+            return "Wine"
+        }
+    }
+
+    var title: String {
+        title(in: .english)
+    }
+}
+
 // MARK: - Launch Phase
 
 enum LaunchPhase: Sendable, Equatable {

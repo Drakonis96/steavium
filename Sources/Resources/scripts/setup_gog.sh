@@ -17,7 +17,7 @@ CROSSOVER_GOG_EXE="$CROSSOVER_BOTTLE_DIR/drive_c/Program Files (x86)/GOG Galaxy/
 
 GOG_EXE_PREFIX="$GOG_PREFIX/drive_c/Program Files (x86)/GOG Galaxy/GalaxyClient.exe"
 
-INSTALLER_URL="https://webinstallers.gog-statics.com/download/GOG_Galaxy_Installation_x64.exe"
+INSTALLER_URL="https://webinstallers.gog-statics.com/download/GOG_Galaxy_2.0.exe"
 
 ensure_gog_dirs() {
   mkdir -p "$STEAVIUM_HOME" "$GOG_PREFIX" "$GOG_CACHE" "$GOG_LOGS"

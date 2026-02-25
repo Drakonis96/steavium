@@ -13,9 +13,9 @@ EPIC_INSTALLER="$EPIC_CACHE/EpicInstaller.msi"
 
 CROSSOVER_BOTTLE_NAME="${STEAVIUM_CROSSOVER_BOTTLE_EPIC:-steavium-epic}"
 CROSSOVER_BOTTLE_DIR="$HOME/Library/Application Support/CrossOver/Bottles/$CROSSOVER_BOTTLE_NAME"
-CROSSOVER_EPIC_EXE="$CROSSOVER_BOTTLE_DIR/drive_c/Program Files (x86)/Epic Games/Launcher/Portal/Binaries/Win64/EpicGamesLauncher.exe"
+CROSSOVER_EPIC_EXE="$CROSSOVER_BOTTLE_DIR/drive_c/Program Files/Epic Games/Launcher/Portal/Binaries/Win64/EpicGamesLauncher.exe"
 
-EPIC_EXE_PREFIX="$EPIC_PREFIX/drive_c/Program Files (x86)/Epic Games/Launcher/Portal/Binaries/Win64/EpicGamesLauncher.exe"
+EPIC_EXE_PREFIX="$EPIC_PREFIX/drive_c/Program Files/Epic Games/Launcher/Portal/Binaries/Win64/EpicGamesLauncher.exe"
 
 INSTALLER_URL="https://launcher-public-service-prod06.ol.epicgames.com/launcher/api/installer/download/EpicGamesLauncherInstaller.msi"
 
@@ -56,8 +56,9 @@ if is_crossover_mode; then
 
   echo "[5/5] Verifying installation..."
   if [[ ! -f "$CROSSOVER_EPIC_EXE" ]]; then
-    ALT_EXE="$CROSSOVER_BOTTLE_DIR/drive_c/Program Files (x86)/Epic Games/Launcher/Portal/Binaries/Win32/EpicGamesLauncher.exe"
-    if [[ ! -f "$ALT_EXE" ]]; then
+    ALT_EXE="$CROSSOVER_BOTTLE_DIR/drive_c/Program Files (x86)/Epic Games/Launcher/Portal/Binaries/Win64/EpicGamesLauncher.exe"
+    ALT_EXE2="$CROSSOVER_BOTTLE_DIR/drive_c/Program Files (x86)/Epic Games/Launcher/Portal/Binaries/Win32/EpicGamesLauncher.exe"
+    if [[ ! -f "$ALT_EXE" ]] && [[ ! -f "${ALT_EXE2:-}" ]]; then
       echo "Epic Games Launcher executable not found after installation in CrossOver."
       echo "The installer may run in the background. Try launching after a few moments."
       exit 0
@@ -102,8 +103,9 @@ echo "[5/5] Waiting for installer and verifying..."
 sleep 5
 
 if [[ ! -f "$EPIC_EXE_PREFIX" ]]; then
-  ALT_EXE="$EPIC_PREFIX/drive_c/Program Files (x86)/Epic Games/Launcher/Portal/Binaries/Win32/EpicGamesLauncher.exe"
-  if [[ ! -f "$ALT_EXE" ]]; then
+  ALT_EXE="$EPIC_PREFIX/drive_c/Program Files (x86)/Epic Games/Launcher/Portal/Binaries/Win64/EpicGamesLauncher.exe"
+  ALT_EXE2="$EPIC_PREFIX/drive_c/Program Files (x86)/Epic Games/Launcher/Portal/Binaries/Win32/EpicGamesLauncher.exe"
+  if [[ ! -f "$ALT_EXE" ]] && [[ ! -f "${ALT_EXE2:-}" ]]; then
     echo "Epic Games Launcher executable not found inside prefix after installation."
     echo "The installer may run in the background. Try launching after a few moments."
     exit 0

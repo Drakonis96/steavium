@@ -37,6 +37,11 @@ final class StoreViewModel: ObservableObject {
             UserDefaults.standard.set(graphicsBackend.rawValue, forKey: Self.graphicsBackendDefaultsKey)
         }
     }
+    @Published var wineMode: WineMode = .auto {
+        didSet {
+            UserDefaults.standard.set(wineMode.rawValue, forKey: Self.wineModeDefaultsKey)
+        }
+    }
     @Published var installedGames: [InstalledGame] = []
     @Published var selectedGameID: Int? {
         didSet {
@@ -60,6 +65,7 @@ final class StoreViewModel: ObservableObject {
     /// Human-readable name of the current store for dynamic UI labels.
     var currentStoreName: String { selectedLauncher.label }
 
+    private static let wineModeDefaultsKey = "steavium.wine_mode"
     private static let graphicsBackendDefaultsKey = "steavium.graphics_backend"
     private static let gameLibraryDefaultsKey = "steavium.game_library_path"
     private static let languageDefaultsKey = "steavium.language"
@@ -98,6 +104,10 @@ final class StoreViewModel: ObservableObject {
         if let rawBackend = UserDefaults.standard.string(forKey: Self.graphicsBackendDefaultsKey),
            let backend = GraphicsBackend(rawValue: rawBackend) {
             graphicsBackend = backend
+        }
+        if let rawWineMode = UserDefaults.standard.string(forKey: Self.wineModeDefaultsKey),
+           let mode = WineMode(rawValue: rawWineMode) {
+            wineMode = mode
         }
         setupCompleted = UserDefaults.standard.bool(forKey: Self.setupCompletedDefaultsKey)
         if let storedLibraryPath = UserDefaults.standard.string(forKey: Self.gameLibraryDefaultsKey) {

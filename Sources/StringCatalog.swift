@@ -84,6 +84,10 @@ enum L {
         english: "Backend",
         spanish: "Backend"
     )
+    static let wineMode = LocalizedEntry(
+        english: "Runtime",
+        spanish: "Runtime"
+    )
     static let gamepads = LocalizedEntry(
         english: "Gamepads",
         spanish: "Gamepads"

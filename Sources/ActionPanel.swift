@@ -14,6 +14,15 @@ struct ActionPanel: View {
     var body: some View {
         PanelCard(title: L.actions.resolve(in: language)) {
             HStack(spacing: 10) {
+                Picker(L.wineMode.resolve(in: language), selection: $viewModel.wineMode) {
+                    ForEach(WineMode.allCases, id: \.self) { mode in
+                        Text(mode.title(in: language)).tag(mode)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 150)
+                .disabled(viewModel.isBusy)
+
                 Picker(L.backend.resolve(in: language), selection: $viewModel.graphicsBackend) {
                     ForEach(GraphicsBackend.allCases, id: \.self) { backend in
                         Text(backend.title(in: language)).tag(backend)

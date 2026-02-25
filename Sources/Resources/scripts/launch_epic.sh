@@ -48,8 +48,10 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 resolve_epic_exe() {
   local candidates=(
+    "$CROSSOVER_BOTTLE_DIR/drive_c/Program Files/Epic Games/Launcher/Portal/Binaries/Win64/EpicGamesLauncher.exe"
     "$CROSSOVER_BOTTLE_DIR/drive_c/Program Files (x86)/Epic Games/Launcher/Portal/Binaries/Win64/EpicGamesLauncher.exe"
     "$CROSSOVER_BOTTLE_DIR/drive_c/Program Files (x86)/Epic Games/Launcher/Portal/Binaries/Win32/EpicGamesLauncher.exe"
+    "$EPIC_PREFIX/drive_c/Program Files/Epic Games/Launcher/Portal/Binaries/Win64/EpicGamesLauncher.exe"
     "$EPIC_PREFIX/drive_c/Program Files (x86)/Epic Games/Launcher/Portal/Binaries/Win64/EpicGamesLauncher.exe"
     "$EPIC_PREFIX/drive_c/Program Files (x86)/Epic Games/Launcher/Portal/Binaries/Win32/EpicGamesLauncher.exe"
   )

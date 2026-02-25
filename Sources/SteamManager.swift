@@ -402,10 +402,15 @@ actor SteamManager {
         try prepareDirectories()
         let script = try materializeScript(named: "install_runtime.sh")
 
+        var env: [String: String] = ["STEAVIUM_HOME": appHome.path]
+        if let rawMode = UserDefaults.standard.string(forKey: "steavium.wine_mode") {
+            env["STEAVIUM_WINE_MODE"] = rawMode
+        }
+
         let result = try await ShellRunner.runAsync(
             executable: "/bin/bash",
             arguments: [script.path],
-            environment: ["STEAVIUM_HOME": appHome.path]
+            environment: env
         )
 
         return result.output
@@ -575,6 +580,10 @@ actor SteamManager {
     private func scriptEnvironment(gameLibraryPath: String?) -> [String: String] {
         var environment: [String: String] = ["STEAVIUM_HOME": appHome.path]
 
+        if let rawMode = UserDefaults.standard.string(forKey: "steavium.wine_mode") {
+            environment["STEAVIUM_WINE_MODE"] = rawMode
+        }
+
         // Ensure Homebrew and common binary paths are always reachable,
         // even when the app is launched from Finder (which provides a
         // minimal PATH like /usr/bin:/bin:/usr/sbin:/sbin).
@@ -717,9 +726,13 @@ actor SteamManager {
     }
 
     private func detectWine64() -> String? {
-        let bundledCandidates = [
+        let mode = UserDefaults.standard.string(forKey: "steavium.wine_mode") ?? "auto"
+
+        let crossoverCandidates = [
             "/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/CrossOver-Hosted Application/wine",
-            "/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/lib/wine/x86_64-unix/wine",
+            "/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/lib/wine/x86_64-unix/wine"
+        ]
+        let wineCandidates = [
             "/Applications/Wine Crossover.app/Contents/Resources/wine/bin/wine64",
             "/Applications/Whisky.app/Contents/Resources/wine/bin/wine64",
             "/opt/homebrew/bin/wine64",
@@ -728,15 +741,27 @@ actor SteamManager {
             "/usr/local/bin/wine"
         ]
 
+        let bundledCandidates: [String]
+        switch mode {
+        case "crossover":
+            bundledCandidates = crossoverCandidates
+        case "wine":
+            bundledCandidates = wineCandidates
+        default:
+            bundledCandidates = crossoverCandidates + wineCandidates
+        }
+
         for candidate in bundledCandidates where fileManager.isExecutableFile(atPath: candidate) {
             return candidate
         }
 
-        for executable in ["wine", "wine64"] {
-            if let path = (try? ShellRunner.run(executable: "/usr/bin/which", arguments: [executable]).output)?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-               !path.isEmpty {
-                return path
+        if mode != "crossover" {
+            for executable in ["wine", "wine64"] {
+                if let path = (try? ShellRunner.run(executable: "/usr/bin/which", arguments: [executable]).output)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines),
+                   !path.isEmpty {
+                    return path
+                }
             }
         }
 

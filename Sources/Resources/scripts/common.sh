@@ -23,6 +23,10 @@ ensure_dirs() {
 }
 
 is_crossover_mode() {
+  local mode="${STEAVIUM_WINE_MODE:-auto}"
+  if [[ "$mode" == "wine" ]]; then
+    return 1
+  fi
   [[ -x "$CROSSOVER_WINE" && -x "$CROSSOVER_BOTTLE_TOOL" ]]
 }
 
@@ -46,9 +50,13 @@ ensure_crossover_bottle() {
 }
 
 detect_wine64() {
-  local candidates=(
+  local mode="${STEAVIUM_WINE_MODE:-auto}"
+
+  local crossover_candidates=(
     "/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/CrossOver-Hosted Application/wine"
     "/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/lib/wine/x86_64-unix/wine"
+  )
+  local wine_candidates=(
     "/Applications/Wine Crossover.app/Contents/Resources/wine/bin/wine64"
     "/Applications/Whisky.app/Contents/Resources/wine/bin/wine64"
     "/opt/homebrew/bin/wine64"
@@ -57,11 +65,26 @@ detect_wine64() {
     "/usr/local/bin/wine"
   )
 
-  if command -v wine >/dev/null 2>&1; then
-    candidates+=("$(command -v wine)")
-  fi
-  if command -v wine64 >/dev/null 2>&1; then
-    candidates+=("$(command -v wine64)")
+  local candidates=()
+  case "$mode" in
+    crossover)
+      candidates=("${crossover_candidates[@]}")
+      ;;
+    wine)
+      candidates=("${wine_candidates[@]}")
+      ;;
+    *)
+      candidates=("${crossover_candidates[@]}" "${wine_candidates[@]}")
+      ;;
+  esac
+
+  if [[ "$mode" != "crossover" ]]; then
+    if command -v wine >/dev/null 2>&1; then
+      candidates+=("$(command -v wine)")
+    fi
+    if command -v wine64 >/dev/null 2>&1; then
+      candidates+=("$(command -v wine64)")
+    fi
   fi
 
   local candidate=""

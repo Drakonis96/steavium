@@ -17,25 +17,52 @@ if ! command -v brew >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "[1/4] Preparando runtime..."
-if [[ -x "/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/CrossOver-Hosted Application/wine" ]]; then
-  echo "CrossOver detectado. Se usara como runtime prioritario."
-else
-  echo "CrossOver no detectado. Intentando instalar CrossOver (trial)."
-  if ! brew list --cask crossover >/dev/null 2>&1; then
-    brew install --cask crossover || true
-  fi
+WINE_MODE="${STEAVIUM_WINE_MODE:-auto}"
+echo "[1/4] Preparando runtime (mode: $WINE_MODE)..."
 
-  if [[ -x "/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/CrossOver-Hosted Application/wine" ]]; then
-    echo "CrossOver instalado correctamente."
-  else
-    echo "No se pudo instalar CrossOver automaticamente. Usando fallback wine-crossover..."
-    if ! brew tap | grep -q "^gcenx/wine$"; then
-      brew tap gcenx/wine
-    fi
-    brew install --cask --no-quarantine wine-crossover
+install_wine_standalone() {
+  echo "Instalando Wine (open-source) via Homebrew..."
+  if ! brew tap | grep -q "^gcenx/wine$"; then
+    brew tap gcenx/wine
   fi
-fi
+  brew install --cask --no-quarantine wine-crossover
+}
+
+case "$WINE_MODE" in
+  crossover)
+    if [[ -x "/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/CrossOver-Hosted Application/wine" ]]; then
+      echo "CrossOver detectado. Se usara como runtime."
+    else
+      echo "CrossOver no detectado. Intentando instalar CrossOver."
+      if ! brew list --cask crossover >/dev/null 2>&1; then
+        brew install --cask crossover || true
+      fi
+      if [[ -x "/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/CrossOver-Hosted Application/wine" ]]; then
+        echo "CrossOver instalado correctamente."
+      else
+        echo "Error: No se pudo instalar CrossOver. Selecciona 'Auto' o 'Wine' en la UI."
+        exit 1
+      fi
+    fi
+    ;;
+  wine)
+    echo "Modo Wine seleccionado. Omitiendo CrossOver."
+    if ! command -v wine64 >/dev/null 2>&1 && ! command -v wine >/dev/null 2>&1; then
+      install_wine_standalone
+    else
+      echo "Wine ya esta instalado."
+    fi
+    ;;
+  *)
+    # Auto: prefer CrossOver if present, otherwise install standalone Wine
+    if [[ -x "/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/CrossOver-Hosted Application/wine" ]]; then
+      echo "CrossOver detectado. Se usara como runtime prioritario."
+    else
+      echo "CrossOver no detectado. Instalando Wine (open-source)..."
+      install_wine_standalone
+    fi
+    ;;
+esac
 
 echo "[2/4] Instalando utilidades para prefixes y multimedia..."
 brew install winetricks cabextract samba ffmpeg \
