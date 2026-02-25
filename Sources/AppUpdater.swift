@@ -67,7 +67,7 @@ private struct GitHubAsset: Decodable {
 @MainActor
 final class AppUpdater: ObservableObject {
 
-    static let currentVersion = "0.0.4"
+    static let currentVersion = "0.0.5"
     static let repoOwner = "Drakonis96"
     static let repoName = "steavium"
 
@@ -135,14 +135,23 @@ final class AppUpdater: ObservableObject {
     func relaunchApp() {
         guard let appPath = currentAppBundlePath() else { return }
 
+        let pid = ProcessInfo.processInfo.processIdentifier
+
+        // Spawn a background shell that waits for the current process to
+        // exit, then opens the freshly-installed app.
+        let script = """
+        while kill -0 \(pid) 2>/dev/null; do sleep 0.1; done
+        open "\(appPath)"
+        """
+
         let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        task.arguments = ["-n", appPath]
+        task.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        task.arguments = ["-c", script]
         try? task.run()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            NSApplication.shared.terminate(nil)
-        }
+        // Terminate immediately – the watcher shell will relaunch once
+        // this process is gone.
+        NSApplication.shared.terminate(nil)
     }
 
     // MARK: - Private helpers
