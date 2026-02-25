@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct GameProfileEditor: View {
-    @ObservedObject var viewModel: SteamViewModel
+    @ObservedObject var viewModel: StoreViewModel
 
     private var language: AppLanguage { viewModel.language }
 

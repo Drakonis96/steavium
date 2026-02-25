@@ -1,15 +1,15 @@
 import Foundation
 
-enum SteamManagerError: LocalizedError {
+enum StoreManagerError: LocalizedError {
     case missingScript(String)
     case homebrewNotFound
     case preflightBlocking([RuntimePreflightCheckKind])
     case wineRuntimeNotFound
     case dataWipeSelectionRequired
-    case steamAlreadyRunning
+    case storeAlreadyRunning
     case gameProfileGameNotFound(appID: Int)
     case gameProfileExecutableNotFound(appID: Int)
-    case gameProfileSteamRootNotFound
+    case gameProfileStoreRootNotFound
     case gameProfileLocalConfigUnreadable(path: String)
     case gameProfileLocalConfigWriteFailed(path: String)
     case gameProfileCompatibilityVerificationFailed(executable: String, expected: String, actual: String?)
@@ -29,14 +29,14 @@ enum SteamManagerError: LocalizedError {
             return L.errorWineRuntimeNotFound.resolve(in: language)
         case .dataWipeSelectionRequired:
             return L.errorDataWipeSelectionRequired.resolve(in: language)
-        case .steamAlreadyRunning:
-            return L.errorSteamAlreadyRunning.resolve(in: language)
+        case .storeAlreadyRunning:
+            return L.errorStoreAlreadyRunning.resolve(in: language)
         case .gameProfileGameNotFound(let appID):
             return L.errorGameNotFound(appID).resolve(in: language)
         case .gameProfileExecutableNotFound(let appID):
             return L.errorExecutableNotFound(appID).resolve(in: language)
-        case .gameProfileSteamRootNotFound:
-            return L.errorSteamRootNotFound.resolve(in: language)
+        case .gameProfileStoreRootNotFound:
+            return L.errorStoreRootNotFound.resolve(in: language)
         case .gameProfileLocalConfigUnreadable(let path):
             return L.errorLocalConfigUnreadable(path).resolve(in: language)
         case .gameProfileLocalConfigWriteFailed(let path):

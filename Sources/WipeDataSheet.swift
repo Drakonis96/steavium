@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct WipeDataSheet: View {
-    @ObservedObject var viewModel: SteamViewModel
+    @ObservedObject var viewModel: StoreViewModel
     @Binding var isPresented: Bool
     @Binding var wipeAccountData: Bool
     @Binding var wipeLibraryData: Bool
@@ -50,7 +50,7 @@ struct WipeDataSheet: View {
             Button(L.deleteSelection.resolve(in: language), role: .destructive) {
                 showingWipeConfirmation = false
                 isPresented = false
-                viewModel.wipeSteamData(
+                viewModel.wipeStoreData(
                     clearAccountData: wipeAccountData,
                     clearLibraryData: wipeLibraryData
                 )

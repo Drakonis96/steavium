@@ -3,7 +3,7 @@ import SwiftUI
 
 @main
 struct SteaviumApp: App {
-    @StateObject private var viewModel = SteamViewModel()
+    @StateObject private var viewModel = StoreViewModel()
     @NSApplicationDelegateAdaptor(SteaviumAppDelegate.self) private var appDelegate
 
     init() {
@@ -19,7 +19,7 @@ struct SteaviumApp: App {
         MenuBarExtra {
             MenuBarView(viewModel: viewModel)
         } label: {
-            Image(systemName: viewModel.isSteamRunning ? "gamecontroller.fill" : "gamecontroller")
+            Image(systemName: viewModel.isStoreRunning ? "gamecontroller.fill" : "gamecontroller")
         }
     }
 
@@ -45,19 +45,19 @@ final class SteaviumAppDelegate: NSObject, NSApplicationDelegate {
 // MARK: - Menu Bar View
 
 struct MenuBarView: View {
-    @ObservedObject var viewModel: SteamViewModel
+    @ObservedObject var viewModel: StoreViewModel
 
     private var language: AppLanguage { viewModel.language }
 
     var body: some View {
         VStack(spacing: 4) {
             HStack(spacing: 6) {
-                Image(systemName: viewModel.isSteamRunning ? "circle.fill" : "circle")
-                    .foregroundStyle(viewModel.isSteamRunning ? .green : .secondary)
+                Image(systemName: viewModel.isStoreRunning ? "circle.fill" : "circle")
+                    .foregroundStyle(viewModel.isStoreRunning ? .green : .secondary)
                     .font(.caption2)
-                Text(viewModel.isSteamRunning
-                     ? L.menuBarSteamRunning.resolve(in: language)
-                     : L.menuBarSteamNotRunning.resolve(in: language))
+                Text(viewModel.isStoreRunning
+                     ? L.menuBarStoreRunning(viewModel.currentStoreName).resolve(in: language)
+                     : L.menuBarStoreNotRunning(viewModel.currentStoreName).resolve(in: language))
             }
 
             Divider()

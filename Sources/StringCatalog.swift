@@ -89,8 +89,8 @@ enum L {
         spanish: "Gamepads"
     )
     static let appSubtitle = LocalizedEntry(
-        english: "macOS launcher (Apple Silicon) optimized for Windows Steam",
-        spanish: "Launcher macOS (Apple Silicon) optimizado para Steam de Windows"
+        english: "macOS launcher (Apple Silicon) optimized for Windows game stores",
+        spanish: "Launcher macOS (Apple Silicon) optimizado para tiendas de juegos de Windows"
     )
     static let openManual = LocalizedEntry(
         english: "Open Manual",
@@ -141,6 +141,14 @@ enum L {
     static let steamInstalled = LocalizedEntry(
         english: "Steam Installed",
         spanish: "Steam instalado"
+    )
+    static let storeInstalled = LocalizedEntry(
+        english: "Store Installed",
+        spanish: "Tienda instalada"
+    )
+    static let launcher = LocalizedEntry(
+        english: "Launcher",
+        spanish: "Launcher"
     )
     static let detectedChip = LocalizedEntry(
         english: "Detected Chip",
@@ -276,6 +284,24 @@ enum L {
         english: "Close Steam",
         spanish: "Cerrar Steam"
     )
+    static func setUpStore(_ storeName: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "Set Up \(storeName)",
+            spanish: "Preparar \(storeName)"
+        )
+    }
+    static func launchStore(_ storeName: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "Launch \(storeName)",
+            spanish: "Lanzar \(storeName)"
+        )
+    }
+    static func closeStore(_ storeName: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "Close \(storeName)",
+            spanish: "Cerrar \(storeName)"
+        )
+    }
     static let refresh = LocalizedEntry(
         english: "Refresh",
         spanish: "Refrescar"
@@ -331,6 +357,24 @@ enum L {
         english: "Steam is already running",
         spanish: "Steam ya esta ejecutandose"
     )
+    static func closeStoreCompletely(_ storeName: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "Close \(storeName) completely",
+            spanish: "Cerrar \(storeName) por completo"
+        )
+    }
+    static func closeStoreMessage(_ storeName: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "\(storeName) and related processes from the current bottle/prefix will be closed.",
+            spanish: "Se cerraran \(storeName) y procesos asociados del entorno actual (bottle/prefix)."
+        )
+    }
+    static func storeAlreadyRunning(_ storeName: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "\(storeName) is already running",
+            spanish: "\(storeName) ya esta ejecutandose"
+        )
+    }
     static let reuse = LocalizedEntry(
         english: "Reuse",
         spanish: "Reusar"
@@ -343,6 +387,12 @@ enum L {
         english: "You can reuse the current session or restart Steam for a clean state.",
         spanish: "Puedes reusar la sesion actual o reiniciar Steam para un estado limpio."
     )
+    static func storeRunningMessage(_ storeName: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "You can reuse the current session or restart \(storeName) for a clean state.",
+            spanish: "Puedes reusar la sesion actual o reiniciar \(storeName) para un estado limpio."
+        )
+    }
 
     // MARK: Sidebar toggles
 
@@ -535,6 +585,24 @@ enum L {
         english: "Steam launch canceled.",
         spanish: "Lanzamiento de Steam cancelado."
     )
+    static func storeSetup(_ storeName: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "\(storeName) setup",
+            spanish: "Configuracion de \(storeName)"
+        )
+    }
+    static func storeLaunch(_ storeName: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "\(storeName) launch",
+            spanish: "Lanzamiento de \(storeName)"
+        )
+    }
+    static func storeLaunchCanceled(_ storeName: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "\(storeName) launch canceled.",
+            spanish: "Lanzamiento de \(storeName) cancelado."
+        )
+    }
 
     // MARK: Launch phase strings
 
@@ -552,7 +620,7 @@ enum L {
             spanish: "Esperando ventana de Steam... (\(seconds)s)"
         )
     }
-    static let launchPhaseSteamDetected = LocalizedEntry(
+    static let launchPhaseStoreDetected = LocalizedEntry(
         english: "Steam is running!",
         spanish: "Steam esta en ejecucion!"
     )
@@ -570,6 +638,18 @@ enum L {
         english: "Steam process started. The window may take a moment to appear.",
         spanish: "Proceso de Steam iniciado. La ventana puede tardar un momento en aparecer."
     )
+    static func storeLaunchSuccess(_ storeName: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "\(storeName) launched successfully.",
+            spanish: "\(storeName) se lanzo correctamente."
+        )
+    }
+    static func storeLaunchTimedOut(_ storeName: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "\(storeName) process started. The window may take a moment to appear.",
+            spanish: "Proceso de \(storeName) iniciado. La ventana puede tardar un momento en aparecer."
+        )
+    }
     static let launchingLabel = LocalizedEntry(
         english: "Launching...",
         spanish: "Lanzando..."
@@ -595,6 +675,12 @@ enum L {
         english: "Complete Steam shutdown",
         spanish: "Cierre completo de Steam"
     )
+    static func completeStoreShutdown(_ storeName: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "Complete \(storeName) shutdown",
+            spanish: "Cierre completo de \(storeName)"
+        )
+    }
     static let dataWipe = LocalizedEntry(
         english: "Data wipe",
         spanish: "Borrado de datos"
@@ -885,7 +971,7 @@ enum L {
         spanish: "Si algo falla, revisa primero los logs de Consola antes de repetir la configuracion."
     )
 
-    // MARK: SteamManagerError messages
+    // MARK: StoreManagerError messages
 
     static func errorMissingScript(_ name: String) -> LocalizedEntry {
         LocalizedEntry(
@@ -911,7 +997,7 @@ enum L {
         english: "Select at least one option to delete data.",
         spanish: "Selecciona al menos una opcion para borrar datos."
     )
-    static let errorSteamAlreadyRunning = LocalizedEntry(
+    static let errorStoreAlreadyRunning = LocalizedEntry(
         english: "Steam is already running.",
         spanish: "Steam ya esta ejecutandose."
     )
@@ -927,7 +1013,7 @@ enum L {
             spanish: "No se encontro ejecutable valido para AppID \(appID)."
         )
     }
-    static let errorSteamRootNotFound = LocalizedEntry(
+    static let errorStoreRootNotFound = LocalizedEntry(
         english: "Steam installation could not be located to apply per-game profiles.",
         spanish: "No se pudo localizar la instalacion de Steam para aplicar perfiles por juego."
     )
@@ -967,6 +1053,18 @@ enum L {
         english: "Steam is not running",
         spanish: "Steam no esta en ejecucion"
     )
+    static func menuBarStoreRunning(_ storeName: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "\(storeName) is running",
+            spanish: "\(storeName) esta en ejecucion"
+        )
+    }
+    static func menuBarStoreNotRunning(_ storeName: String) -> LocalizedEntry {
+        LocalizedEntry(
+            english: "\(storeName) is not running",
+            spanish: "\(storeName) no esta en ejecucion"
+        )
+    }
     static let menuBarShowSteavium = LocalizedEntry(
         english: "Show Steavium",
         spanish: "Mostrar Steavium"

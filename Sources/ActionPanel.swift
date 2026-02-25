@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ActionPanel: View {
-    @ObservedObject var viewModel: SteamViewModel
+    @ObservedObject var viewModel: StoreViewModel
     @Binding var showingStopSteamDialog: Bool
     @Binding var showingDataWipeDialog: Bool
 
@@ -27,7 +27,7 @@ struct ActionPanel: View {
 
                 if let phase = viewModel.launchPhase {
                     HStack(spacing: 6) {
-                        if phase == .steamDetected {
+                        if phase == .storeDetected {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
                         } else {
@@ -67,26 +67,26 @@ struct ActionPanel: View {
                         viewModel.installRuntime()
                     }
                     ActionTileButton(
-                        title: L.setUpSteam.resolve(in: language),
+                        title: L.setUpStore(viewModel.currentStoreName).resolve(in: language),
                         icon: viewModel.setupCompleted ? "checkmark.circle.fill" : "wrench.and.screwdriver",
                         tone: viewModel.setupCompleted ? .success : .primary,
                         isDisabled: viewModel.isBusy || viewModel.environment.wine64Path == nil
                     ) {
-                        viewModel.setupSteam()
+                        viewModel.setupStore()
                     }
                     ActionTileButton(
-                        title: L.launchSteam.resolve(in: language),
+                        title: L.launchStore(viewModel.currentStoreName).resolve(in: language),
                         icon: "play.circle",
                         tone: .primary,
-                        isDisabled: viewModel.isBusy || viewModel.environment.wine64Path == nil || !viewModel.environment.steamInstalled || !viewModel.setupCompleted
+                        isDisabled: viewModel.isBusy || viewModel.environment.wine64Path == nil || !viewModel.environment.storeAppInstalled || !viewModel.setupCompleted
                     ) {
-                        viewModel.launchSteam()
+                        viewModel.launchStore()
                     }
                     ActionTileButton(
-                        title: L.closeSteam.resolve(in: language),
+                        title: L.closeStore(viewModel.currentStoreName).resolve(in: language),
                         icon: "xmark.circle",
                         tone: .neutral,
-                        isDisabled: viewModel.isBusy || viewModel.environment.wine64Path == nil || !viewModel.environment.steamInstalled
+                        isDisabled: viewModel.isBusy || viewModel.environment.wine64Path == nil || !viewModel.environment.storeAppInstalled
                     ) {
                         showingStopSteamDialog = true
                     }
@@ -197,7 +197,7 @@ struct ActionPanel: View {
                         title: L.wipeData.resolve(in: language),
                         icon: "exclamationmark.triangle",
                         tone: .destructive,
-                        isDisabled: viewModel.isBusy || !viewModel.environment.steamInstalled
+                        isDisabled: viewModel.isBusy || !viewModel.environment.storeAppInstalled
                     ) {
                         showingDataWipeDialog = true
                     }

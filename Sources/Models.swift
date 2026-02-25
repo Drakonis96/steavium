@@ -1,5 +1,27 @@
 import Foundation
 
+// MARK: - Launcher Selection
+
+enum GameStoreLauncher: String, CaseIterable, Identifiable, Sendable {
+    case steam
+    case battleNet
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .steam:
+            return "Steam"
+        case .battleNet:
+            return "Battle.net"
+        }
+    }
+
+    func title(in language: AppLanguage) -> String {
+        label
+    }
+}
+
 // MARK: - Log Entry
 
 struct LogEntry: Identifiable {
@@ -116,9 +138,9 @@ enum GraphicsBackend: String, CaseIterable, Sendable {
 enum LaunchPhase: Sendable, Equatable {
     case preparingEnvironment
     case spawningProcess
-    case waitingForSteam(elapsedSeconds: Int)
-    case steamProcessStarted(elapsedSeconds: Int)
-    case steamDetected
+    case waitingForStore(elapsedSeconds: Int)
+    case storeProcessStarted(elapsedSeconds: Int)
+    case storeDetected
 
     func title(in language: AppLanguage) -> String {
         switch self {
@@ -126,12 +148,12 @@ enum LaunchPhase: Sendable, Equatable {
             return L.launchPhasePreparing.resolve(in: language)
         case .spawningProcess:
             return L.launchPhaseSpawning.resolve(in: language)
-        case .waitingForSteam(let elapsed):
+        case .waitingForStore(let elapsed):
             return L.launchPhaseWaiting(elapsed).resolve(in: language)
-        case .steamProcessStarted(let elapsed):
+        case .storeProcessStarted(let elapsed):
             return L.launchPhaseProcessStarted(elapsed).resolve(in: language)
-        case .steamDetected:
-            return L.launchPhaseSteamDetected.resolve(in: language)
+        case .storeDetected:
+            return L.launchPhaseStoreDetected.resolve(in: language)
         }
     }
 
@@ -142,21 +164,21 @@ enum LaunchPhase: Sendable, Equatable {
             return 0.1
         case .spawningProcess:
             return 0.25
-        case .waitingForSteam(let elapsed):
+        case .waitingForStore(let elapsed):
             // Asymptotic approach to 0.65 over ~30s
             let t = Double(elapsed)
             return 0.25 + 0.40 * (1.0 - exp(-t / 12.0))
-        case .steamProcessStarted(let elapsed):
+        case .storeProcessStarted(let elapsed):
             // Process exists but window not yet visible; 0.65 → 0.95
             let t = Double(elapsed)
             return 0.65 + 0.30 * (1.0 - exp(-t / 15.0))
-        case .steamDetected:
+        case .storeDetected:
             return 1.0
         }
     }
 }
 
-enum SteamRunningPolicy: String, CaseIterable, Sendable {
+enum StoreRunningPolicy: String, CaseIterable, Sendable {
     case askEveryTime = "ask"
     case reuseExisting = "reuse"
     case restart = "restart"
@@ -301,22 +323,22 @@ struct HardwareProfile: Sendable {
     )
 }
 
-struct SteamEnvironment: Sendable {
+struct StoreEnvironment: Sendable {
     let appHomePath: String
     let prefixPath: String
     let logsPath: String
     let wine64Path: String?
-    let steamInstalled: Bool
-    let steamExecutablePath: String?
+    let storeAppInstalled: Bool
+    let storeAppExecutablePath: String?
     let hardwareProfile: HardwareProfile
 
-    static let empty = SteamEnvironment(
+    static let empty = StoreEnvironment(
         appHomePath: "",
         prefixPath: "",
         logsPath: "",
         wine64Path: nil,
-        steamInstalled: false,
-        steamExecutablePath: nil,
+        storeAppInstalled: false,
+        storeAppExecutablePath: nil,
         hardwareProfile: .empty
     )
 }

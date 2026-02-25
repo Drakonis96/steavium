@@ -1,24 +1,26 @@
 import XCTest
 @testable import Steavium
 
-/// Minimal mock of SteamManaging that records calls and returns canned values.
+/// Minimal mock of GameStoreManaging that records calls and returns canned values.
 /// Used to verify the ViewModel's launch flow without spawning real processes.
-private actor MockSteamManager: SteamManaging {
+private actor MockStoreManager: GameStoreManaging {
+    nonisolated var storeName: String { "Steam" }
+
     var launchDetachedCallCount = 0
-    var isSteamRunningResult = false
-    var isSteamWindowVisibleResult = false
-    var isSteamRunningCallCount = 0
+    var isStoreRunningResult = false
+    var isStoreWindowVisibleResult = false
+    var isStoreRunningCallCount = 0
     var launchDetachedOutput = "Steam lanzado en background (worker). PID=12345 LOG=/tmp/test.log"
     var shouldThrowOnLaunch = false
 
-    func snapshot() -> SteamEnvironment {
-        SteamEnvironment(
+    func snapshot() -> StoreEnvironment {
+        StoreEnvironment(
             appHomePath: "/tmp/steavium-test",
             prefixPath: "/tmp/steavium-test/prefixes/steam",
             logsPath: "/tmp/steavium-test/logs",
             wine64Path: "/usr/local/bin/wine64",
-            steamInstalled: true,
-            steamExecutablePath: "/tmp/steam.exe",
+            storeAppInstalled: true,
+            storeAppExecutablePath: "/tmp/steam.exe",
             hardwareProfile: .empty
         )
     }
@@ -35,32 +37,32 @@ private actor MockSteamManager: SteamManaging {
 
     func installRuntime() async throws -> String { "ok" }
 
-    func setupSteam(gameLibraryPath: String?) async throws -> String { "ok" }
+    func setupStore(gameLibraryPath: String?) async throws -> String { "ok" }
 
-    func launchSteamDetached(
+    func launchStoreDetached(
         graphicsBackend: GraphicsBackend,
-        runningPolicy: SteamRunningPolicy,
+        runningPolicy: StoreRunningPolicy,
         gameLibraryPath: String?
     ) async throws -> String {
         launchDetachedCallCount += 1
         if shouldThrowOnLaunch {
-            throw SteamManagerError.wineRuntimeNotFound
+            throw StoreManagerError.wineRuntimeNotFound
         }
         return launchDetachedOutput
     }
 
-    func stopSteamCompletely() async throws -> String { "ok" }
+    func stopStoreCompletely() async throws -> String { "ok" }
 
-    func isSteamRunning() async -> Bool {
-        isSteamRunningCallCount += 1
-        return isSteamRunningResult
+    func isStoreRunning() async -> Bool {
+        isStoreRunningCallCount += 1
+        return isStoreRunningResult
     }
 
-    func isSteamWindowVisible() async -> Bool {
-        return isSteamWindowVisibleResult
+    func isStoreWindowVisible() async -> Bool {
+        return isStoreWindowVisibleResult
     }
 
-    func wipeSteamData(clearAccountData: Bool, clearLibraryData: Bool) async throws -> String { "ok" }
+    func wipeStoreData(clearAccountData: Bool, clearLibraryData: Bool) async throws -> String { "ok" }
 
     func saveGameCompatibilityProfile(_ profile: GameCompatibilityProfile) async throws -> String { "ok" }
 
@@ -77,12 +79,12 @@ private actor MockSteamManager: SteamManaging {
     }
 
     // Helpers for test control
-    func setSteamRunning(_ running: Bool) {
-        isSteamRunningResult = running
+    func setStoreRunning(_ running: Bool) {
+        isStoreRunningResult = running
     }
 
-    func setSteamWindowVisible(_ visible: Bool) {
-        isSteamWindowVisibleResult = visible
+    func setStoreWindowVisible(_ visible: Bool) {
+        isStoreWindowVisibleResult = visible
     }
 
     func setThrowOnLaunch(_ shouldThrow: Bool) {
@@ -94,86 +96,86 @@ private actor MockSteamManager: SteamManaging {
 final class SteamLaunchFlowTests: XCTestCase {
 
     func testLaunchPhaseStartsNilOnNewViewModel() async {
-        let mock = MockSteamManager()
-        let vm = SteamViewModel(manager: mock)
+        let mock = MockStoreManager()
+        let vm = StoreViewModel(manager: mock)
         XCTAssertNil(vm.launchPhase)
     }
 
     func testLaunchSetsIsBusyAndLaunchPhase() async throws {
-        let mock = MockSteamManager()
+        let mock = MockStoreManager()
         // Pre-set Steam as running so the polling exits quickly
-        await mock.setSteamRunning(true)
+        await mock.setStoreRunning(true)
 
-        let vm = SteamViewModel(manager: mock)
+        let vm = StoreViewModel(manager: mock)
         // Wait for initial refresh tasks
         try await Task.sleep(nanoseconds: 500_000_000)
 
-        vm.launchSteam()
+        vm.launchStore()
 
-        // Give the launch task time to start (it checks isSteamRunning first)
+        // Give the launch task time to start (it checks isStoreRunning first)
         try await Task.sleep(nanoseconds: 200_000_000)
 
-        // Should have called launchSteamDetached at least once, or be in a launch state
-        // Since isSteamRunning is true initially, it will show the "already running" dialog
+        // Should have called launchStoreDetached at least once, or be in a launch state
+        // Since isStoreRunning is true initially, it will show the "already running" dialog
         // So let's test the reuse flow instead
-        XCTAssertTrue(vm.showingSteamRunningDialog || vm.isBusy)
+        XCTAssertTrue(vm.showingStoreRunningDialog || vm.isBusy)
     }
 
     func testLaunchPhaseTransitionsThroughExpectedStates() async throws {
-        let mock = MockSteamManager()
-        let vm = SteamViewModel(manager: mock)
+        let mock = MockStoreManager()
+        let vm = StoreViewModel(manager: mock)
         // Wait for initial refresh tasks
         try await Task.sleep(nanoseconds: 500_000_000)
 
         // No existing session
-        await mock.setSteamRunning(false)
-        await mock.setSteamWindowVisible(false)
+        await mock.setStoreRunning(false)
+        await mock.setStoreWindowVisible(false)
 
         // Directly call the reuse path (bypasses the "is running?" check)
-        vm.launchSteamReusingSession()
+        vm.launchStoreReusingSession()
 
         // Give the launch a moment to start
         try await Task.sleep(nanoseconds: 300_000_000)
 
         // The launch should have been initiated
         let detachedCalls = await mock.launchDetachedCallCount
-        XCTAssertEqual(detachedCalls, 1, "launchSteamDetached should have been called exactly once")
+        XCTAssertEqual(detachedCalls, 1, "launchStoreDetached should have been called exactly once")
 
         // Simulate process appearing (but no window yet)
-        await mock.setSteamRunning(true)
+        await mock.setStoreRunning(true)
 
         // Wait for the polling to detect the process (polls every 1s)
         try await Task.sleep(nanoseconds: 2_000_000_000)
 
-        // Should be in the steamProcessStarted phase (process found, window not yet)
-        if case .steamProcessStarted = vm.launchPhase {
+        // Should be in the storeProcessStarted phase (process found, window not yet)
+        if case .storeProcessStarted = vm.launchPhase {
             // expected
         } else {
             // It might have already proceeded if timing is tight;
-            // the key assertion is that it doesn't falsely report .steamDetected yet
+            // the key assertion is that it doesn't falsely report .storeDetected yet
             XCTAssertNotNil(vm.launchPhase, "Should still be in a launch phase")
         }
 
         // Now simulate window appearing
-        await mock.setSteamWindowVisible(true)
+        await mock.setStoreWindowVisible(true)
 
         // Wait for the window polling to detect it
         try await Task.sleep(nanoseconds: 2_000_000_000)
 
-        // Should have detected Steam window and completed
-        XCTAssertEqual(vm.launchPhase, .steamDetected)
+        // Should have detected store window and completed
+        XCTAssertEqual(vm.launchPhase, .storeDetected)
     }
 
     func testLaunchErrorClearsPhaseAndMarksNotBusy() async throws {
-        let mock = MockSteamManager()
+        let mock = MockStoreManager()
         await mock.setThrowOnLaunch(true)
 
-        let vm = SteamViewModel(manager: mock)
+        let vm = StoreViewModel(manager: mock)
         try await Task.sleep(nanoseconds: 500_000_000)
 
         // Start via reuse path to bypass the running check
-        await mock.setSteamRunning(false)
-        vm.launchSteamReusingSession()
+        await mock.setStoreRunning(false)
+        vm.launchStoreReusingSession()
 
         // Wait for error to propagate
         try await Task.sleep(nanoseconds: 1_000_000_000)

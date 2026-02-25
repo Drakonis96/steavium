@@ -3,13 +3,13 @@ import Foundation
 import UniformTypeIdentifiers
 
 @MainActor
-final class SteamViewModel: ObservableObject {
-    @Published var environment: SteamEnvironment = .empty
+final class StoreViewModel: ObservableObject {
+    @Published var environment: StoreEnvironment = .empty
     @Published var logs: String = ""
     @Published var logEntries: [LogEntry] = []
     @Published var statusText: String = "Ready."
     @Published var isBusy: Bool = false
-    @Published var showingSteamRunningDialog: Bool = false
+    @Published var showingStoreRunningDialog: Bool = false
     @Published var language: AppLanguage = .english {
         didSet {
             UserDefaults.standard.set(language.rawValue, forKey: Self.languageDefaultsKey)
@@ -45,14 +45,26 @@ final class SteamViewModel: ObservableObject {
     }
     @Published var profileEditor: GameProfileEditorState = .empty
     @Published var preflightReport: RuntimePreflightReport = .empty
-    @Published var isSteamRunning: Bool = false
+    @Published var isStoreRunning: Bool = false
     @Published var prerequisitesInstalled: Bool = false
+    @Published var selectedLauncher: GameStoreLauncher = .steam {
+        didSet {
+            UserDefaults.standard.set(selectedLauncher.rawValue, forKey: Self.launcherDefaultsKey)
+            if oldValue != selectedLauncher {
+                switchManager(to: selectedLauncher)
+            }
+        }
+    }
 
-    private let manager: any SteamManaging
+    private(set) var manager: any GameStoreManaging
+    /// Human-readable name of the current store for dynamic UI labels.
+    var currentStoreName: String { selectedLauncher.label }
+
     private static let graphicsBackendDefaultsKey = "steavium.graphics_backend"
     private static let gameLibraryDefaultsKey = "steavium.game_library_path"
     private static let languageDefaultsKey = "steavium.language"
     private static let setupCompletedDefaultsKey = "steavium.setup_completed"
+    private static let launcherDefaultsKey = "steavium.selected_launcher"
     private static let logTimestampFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
@@ -63,8 +75,21 @@ final class SteamViewModel: ObservableObject {
     private var profilesByAppID: [Int: GameCompatibilityProfile] = [:]
     private var steamStatusTask: Task<Void, Never>?
 
-    init(manager: any SteamManaging = SteamManager()) {
+    init(manager: any GameStoreManaging = SteamManager(), launcher: GameStoreLauncher = .steam) {
         self.manager = manager
+
+        // Restore saved launcher choice
+        if let rawLauncher = UserDefaults.standard.string(forKey: Self.launcherDefaultsKey),
+           let savedLauncher = GameStoreLauncher(rawValue: rawLauncher) {
+            selectedLauncher = savedLauncher
+            // If the saved launcher doesn't match the default manager, switch immediately
+            if savedLauncher != launcher {
+                self.manager = Self.createManager(for: savedLauncher)
+            }
+        } else {
+            selectedLauncher = launcher
+        }
+
         if let rawLanguage = UserDefaults.standard.string(forKey: Self.languageDefaultsKey),
            let storedLanguage = AppLanguage(rawValue: rawLanguage) {
             language = storedLanguage
@@ -92,15 +117,59 @@ final class SteamViewModel: ObservableObject {
             await refreshGameLibraryState(forceRefresh: true)
         }
 
-        startSteamStatusPolling()
+        startStoreStatusPolling()
     }
 
-    private func startSteamStatusPolling() {
+    private static func createManager(for launcher: GameStoreLauncher) -> any GameStoreManaging {
+        switch launcher {
+        case .steam:
+            return SteamManager()
+        case .battleNet:
+            return BattleNetManager()
+        }
+    }
+
+    private func switchManager(to launcher: GameStoreLauncher) {
+        guard !isBusy else { return }
+
+        // Cancel polling before switching
+        steamStatusTask?.cancel()
+        steamStatusTask = nil
+
+        // Create new manager
+        manager = Self.createManager(for: launcher)
+
+        // Reset transient state
+        isStoreRunning = false
+        launchPhase = nil
+        installedGames = []
+        selectedGameID = nil
+        profileEditor = .empty
+        profilesByAppID = [:]
+        preflightReport = .empty
+        setupCompleted = false
+        prerequisitesInstalled = false
+        environment = .empty
+
+        statusText = L.ready.resolve(in: language)
+
+        // Re-initialize for the new manager
+        Task {
+            await refreshEnvironment()
+            await refreshPreflightReport()
+            await refreshPrerequisitesStatus()
+            await refreshGameLibraryState(forceRefresh: true)
+        }
+
+        startStoreStatusPolling()
+    }
+
+    private func startStoreStatusPolling() {
         steamStatusTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
-                let running = await self.manager.isSteamRunning()
-                self.isSteamRunning = running
+                let running = await self.manager.isStoreRunning()
+                self.isStoreRunning = running
                 try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
             }
         }
@@ -109,7 +178,7 @@ final class SteamViewModel: ObservableObject {
     func refreshEnvironment() async {
         environment = await manager.snapshot()
         // Auto-detect setup completion for users who set up before this check was added
-        if !setupCompleted && environment.steamInstalled && environment.wine64Path != nil {
+        if !setupCompleted && environment.storeAppInstalled && environment.wine64Path != nil {
             setupCompleted = true
         }
     }
@@ -151,17 +220,17 @@ final class SteamViewModel: ObservableObject {
             }
 
             guard !report.hasBlockingFailures else {
-                throw SteamManagerError.preflightBlocking(report.blockingFailureKinds)
+                throw StoreManagerError.preflightBlocking(report.blockingFailureKinds)
             }
 
             return try await manager.installRuntime()
         }
     }
 
-    func setupSteam() {
+    func setupStore() {
         let gameLibraryPath = selectedGameLibraryPath
-        runAction(title: L.steamSetup.resolve(in: language)) { [weak self] manager in
-            let output = try await manager.setupSteam(gameLibraryPath: gameLibraryPath)
+        runAction(title: L.storeSetup(currentStoreName).resolve(in: language)) { [weak self] manager in
+            let output = try await manager.setupStore(gameLibraryPath: gameLibraryPath)
             await MainActor.run {
                 self?.setupCompleted = true
             }
@@ -169,51 +238,51 @@ final class SteamViewModel: ObservableObject {
         }
     }
 
-    func launchSteam() {
+    func launchStore() {
         guard !isBusy else { return }
 
         let backend = graphicsBackend
         Task {
-            let running = await manager.isSteamRunning()
+            let running = await manager.isStoreRunning()
             if running {
                 pendingLaunchBackend = backend
-                showingSteamRunningDialog = true
+                showingStoreRunningDialog = true
                 return
             }
 
-            launchSteamNow(runningPolicy: .reuseExisting, backend: backend)
+            launchStoreNow(runningPolicy: .reuseExisting, backend: backend)
         }
     }
 
-    func launchSteamReusingSession() {
-        showingSteamRunningDialog = false
+    func launchStoreReusingSession() {
+        showingStoreRunningDialog = false
         let backend = pendingLaunchBackend ?? graphicsBackend
         pendingLaunchBackend = nil
-        launchSteamNow(runningPolicy: .reuseExisting, backend: backend)
+        launchStoreNow(runningPolicy: .reuseExisting, backend: backend)
     }
 
-    func launchSteamRestarting() {
-        showingSteamRunningDialog = false
+    func launchStoreRestarting() {
+        showingStoreRunningDialog = false
         let backend = pendingLaunchBackend ?? graphicsBackend
         pendingLaunchBackend = nil
-        launchSteamNow(runningPolicy: .restart, backend: backend)
+        launchStoreNow(runningPolicy: .restart, backend: backend)
     }
 
-    func cancelSteamLaunchDecision() {
-        showingSteamRunningDialog = false
+    func cancelStoreLaunchDecision() {
+        showingStoreRunningDialog = false
         pendingLaunchBackend = nil
-        statusText = L.steamLaunchCanceled.resolve(in: language)
+        statusText = L.storeLaunchCanceled(currentStoreName).resolve(in: language)
     }
 
-    func stopSteamCompletely() {
-        runAction(title: L.completeSteamShutdown.resolve(in: language)) { manager in
-            try await manager.stopSteamCompletely()
+    func stopStoreCompletely() {
+        runAction(title: L.completeStoreShutdown(currentStoreName).resolve(in: language)) { manager in
+            try await manager.stopStoreCompletely()
         }
     }
 
-    func wipeSteamData(clearAccountData: Bool, clearLibraryData: Bool) {
+    func wipeStoreData(clearAccountData: Bool, clearLibraryData: Bool) {
         runAction(title: L.dataWipe.resolve(in: language)) { manager in
-            try await manager.wipeSteamData(
+            try await manager.wipeStoreData(
                 clearAccountData: clearAccountData,
                 clearLibraryData: clearLibraryData
             )
@@ -462,7 +531,7 @@ final class SteamViewModel: ObservableObject {
     private func runAction(
         title: String,
         refreshPreflightAfterCompletion: Bool = false,
-        operation: @escaping (any SteamManaging) async throws -> String
+        operation: @escaping (any GameStoreManaging) async throws -> String
     ) {
         guard !isBusy else { return }
 
@@ -504,11 +573,11 @@ final class SteamViewModel: ObservableObject {
         prerequisitesInstalled = report.check(for: .homebrew)?.status == .ok
     }
 
-    private func launchSteamNow(runningPolicy: SteamRunningPolicy, backend: GraphicsBackend) {
+    private func launchStoreNow(runningPolicy: StoreRunningPolicy, backend: GraphicsBackend) {
         guard !isBusy else { return }
 
         let gameLibraryPath = selectedGameLibraryPath
-        let title = L.steamLaunch.resolve(in: language)
+        let title = L.storeLaunch(currentStoreName).resolve(in: language)
         isBusy = true
         launchPhase = .preparingEnvironment
         statusText = L.launchPhasePreparing.resolve(in: language)
@@ -518,7 +587,7 @@ final class SteamViewModel: ObservableObject {
                 isBusy = false
                 // Clear phase after a brief moment so the user sees the final state
                 Task { @MainActor in
-                    if launchPhase == .steamDetected {
+                    if launchPhase == .storeDetected {
                         try? await Task.sleep(nanoseconds: 1_500_000_000)
                     }
                     launchPhase = nil
@@ -530,7 +599,7 @@ final class SteamViewModel: ObservableObject {
                 launchPhase = .spawningProcess
                 statusText = L.launchPhaseSpawning.resolve(in: language)
 
-                let output = try await manager.launchSteamDetached(
+                let output = try await manager.launchStoreDetached(
                     graphicsBackend: backend,
                     runningPolicy: runningPolicy,
                     gameLibraryPath: gameLibraryPath
@@ -538,11 +607,17 @@ final class SteamViewModel: ObservableObject {
 
                 appendLog(section: title, output: output)
 
-                // Phase 2: Wait for Steam process to start, then for its window to appear
-                launchPhase = .waitingForSteam(elapsedSeconds: 0)
+                // Phase 2: Wait for store process to start, then for its window to appear
+                launchPhase = .waitingForStore(elapsedSeconds: 0)
                 statusText = L.launchPhaseWaiting(0).resolve(in: language)
 
-                let liveLogPath = "\(environment.logsPath)/steam-live.log"
+                let liveLogPath: String
+                switch selectedLauncher {
+                case .steam:
+                    liveLogPath = "\(environment.logsPath)/steam-live.log"
+                case .battleNet:
+                    liveLogPath = "\(environment.logsPath)/battlenet-live.log"
+                }
                 var lastLogSize: UInt64 = currentFileSize(at: liveLogPath)
                 let maxWaitProcess = 60   // Max seconds to wait for the process
                 let maxWaitWindow = 90    // Max total seconds to wait for the window
@@ -551,16 +626,16 @@ final class SteamViewModel: ObservableObject {
                 var windowFound = false
                 var processFoundAtSecond = 0
 
-                // Sub-phase A: Wait for the Steam *process* to appear
+                // Sub-phase A: Wait for the store *process* to appear
                 while elapsed < maxWaitProcess && !processFound {
                     try await Task.sleep(nanoseconds: 1_000_000_000)
                     elapsed += 1
-                    launchPhase = .waitingForSteam(elapsedSeconds: elapsed)
+                    launchPhase = .waitingForStore(elapsedSeconds: elapsed)
                     statusText = L.launchPhaseWaiting(elapsed).resolve(in: language)
 
                     tailLiveLog(liveLogPath: liveLogPath, lastLogSize: &lastLogSize, title: title)
 
-                    if await manager.isSteamRunning() {
+                    if await manager.isStoreRunning() {
                         processFound = true
                         processFoundAtSecond = elapsed
                     }
@@ -569,19 +644,19 @@ final class SteamViewModel: ObservableObject {
                 // Sub-phase B: Process found — now wait for a visible *window*
                 if processFound {
                     var windowElapsed = 0
-                    launchPhase = .steamProcessStarted(elapsedSeconds: 0)
+                    launchPhase = .storeProcessStarted(elapsedSeconds: 0)
                     statusText = L.launchPhaseProcessStarted(0).resolve(in: language)
 
                     while elapsed < maxWaitWindow && !windowFound {
                         try await Task.sleep(nanoseconds: 1_000_000_000)
                         elapsed += 1
                         windowElapsed += 1
-                        launchPhase = .steamProcessStarted(elapsedSeconds: windowElapsed)
+                        launchPhase = .storeProcessStarted(elapsedSeconds: windowElapsed)
                         statusText = L.launchPhaseProcessStarted(windowElapsed).resolve(in: language)
 
                         tailLiveLog(liveLogPath: liveLogPath, lastLogSize: &lastLogSize, title: title)
 
-                        if await manager.isSteamWindowVisible() {
+                        if await manager.isStoreWindowVisible() {
                             windowFound = true
                         }
                     }
@@ -591,16 +666,16 @@ final class SteamViewModel: ObservableObject {
                 tailLiveLog(liveLogPath: liveLogPath, lastLogSize: &lastLogSize, title: title)
 
                 if windowFound {
-                    launchPhase = .steamDetected
-                    statusText = L.steamLaunchSuccess.resolve(in: language)
+                    launchPhase = .storeDetected
+                    statusText = L.storeLaunchSuccess(currentStoreName).resolve(in: language)
                 } else if processFound {
                     // Process exists but window never appeared — still report as
                     // launched but warn the user it may take more time
-                    launchPhase = .steamDetected
-                    statusText = L.steamLaunchTimedOut.resolve(in: language)
+                    launchPhase = .storeDetected
+                    statusText = L.storeLaunchTimedOut(currentStoreName).resolve(in: language)
                 } else {
                     launchPhase = nil
-                    statusText = L.steamLaunchTimedOut.resolve(in: language)
+                    statusText = L.storeLaunchTimedOut(currentStoreName).resolve(in: language)
                 }
 
                 environment = await manager.snapshot()
@@ -797,7 +872,7 @@ final class SteamViewModel: ObservableObject {
     }
 
     private func localizedErrorDescription(for error: Error) -> String {
-        if let managerError = error as? SteamManagerError {
+        if let managerError = error as? StoreManagerError {
             return managerError.errorDescription(in: language)
         }
         return error.localizedDescription

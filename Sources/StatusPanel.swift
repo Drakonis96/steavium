@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct StatusPanel: View {
-    @ObservedObject var viewModel: SteamViewModel
+    @ObservedObject var viewModel: StoreViewModel
 
     private var language: AppLanguage { viewModel.language }
 
@@ -17,8 +17,8 @@ struct StatusPanel: View {
                     value: viewModel.environment.wine64Path ?? L.notDetected.resolve(in: language)
                 )
                 StatusTile(
-                    title: L.steamInstalled.resolve(in: language),
-                    value: viewModel.environment.steamInstalled
+                    title: L.storeInstalled.resolve(in: language),
+                    value: viewModel.environment.storeAppInstalled
                         ? L.yes.resolve(in: language)
                         : L.no.resolve(in: language)
                 )

@@ -1,24 +1,29 @@
 import Foundation
 
-/// Protocol abstracting the public surface of `SteamManager`
-/// so that `SteamViewModel` can be tested with a mock.
-protocol SteamManaging: Actor {
-    func snapshot() -> SteamEnvironment
+/// Protocol abstracting the public surface of a game-store manager
+/// (Steam, Battle.net, …) so that `StoreViewModel` can be tested
+/// with a mock and new store back-ends can be added without
+/// touching UI code.
+protocol GameStoreManaging: Actor {
+    /// Human-readable name shown in the UI (e.g. "Steam").
+    var storeName: String { get }
+
+    func snapshot() -> StoreEnvironment
     func gameLibraryState(forceRefresh: Bool) -> GameLibraryState
     func runtimePreflightReport() -> RuntimePreflightReport
 
     func installPrerequisites() async throws -> String
     func installRuntime() async throws -> String
-    func setupSteam(gameLibraryPath: String?) async throws -> String
-    func launchSteamDetached(
+    func setupStore(gameLibraryPath: String?) async throws -> String
+    func launchStoreDetached(
         graphicsBackend: GraphicsBackend,
-        runningPolicy: SteamRunningPolicy,
+        runningPolicy: StoreRunningPolicy,
         gameLibraryPath: String?
     ) async throws -> String
-    func stopSteamCompletely() async throws -> String
-    func isSteamRunning() async -> Bool
-    func isSteamWindowVisible() async -> Bool
-    func wipeSteamData(clearAccountData: Bool, clearLibraryData: Bool) async throws -> String
+    func stopStoreCompletely() async throws -> String
+    func isStoreRunning() async -> Bool
+    func isStoreWindowVisible() async -> Bool
+    func wipeStoreData(clearAccountData: Bool, clearLibraryData: Bool) async throws -> String
 
     func saveGameCompatibilityProfile(_ profile: GameCompatibilityProfile) async throws -> String
     func removeGameCompatibilityProfile(appID: Int) async throws -> String
@@ -31,4 +36,5 @@ protocol SteamManaging: Actor {
     ) async throws -> URL
 }
 
-extension SteamManager: SteamManaging {}
+extension SteamManager: GameStoreManaging {}
+extension BattleNetManager: GameStoreManaging {}

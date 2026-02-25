@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 struct ContentView: View {
-    @ObservedObject var viewModel: SteamViewModel
+    @ObservedObject var viewModel: StoreViewModel
     @StateObject private var updater = AppUpdater()
     @State private var showingStopSteamDialog: Bool = false
     @State private var showingDataWipeDialog: Bool = false
@@ -90,33 +90,33 @@ struct ContentView: View {
             Text(L.uninstallMessage.resolve(in: language))
         }
         .confirmationDialog(
-            L.closeSteamCompletely.resolve(in: language),
+            L.closeStoreCompletely(viewModel.currentStoreName).resolve(in: language),
             isPresented: $showingStopSteamDialog,
             titleVisibility: .visible
         ) {
-            Button(L.closeSteam.resolve(in: language), role: .destructive) {
-                viewModel.stopSteamCompletely()
+            Button(L.closeStore(viewModel.currentStoreName).resolve(in: language), role: .destructive) {
+                viewModel.stopStoreCompletely()
             }
             Button(L.cancel.resolve(in: language), role: .cancel) {}
         } message: {
-            Text(L.closeSteamMessage.resolve(in: language))
+            Text(L.closeStoreMessage(viewModel.currentStoreName).resolve(in: language))
         }
         .confirmationDialog(
-            L.steamAlreadyRunning.resolve(in: language),
-            isPresented: $viewModel.showingSteamRunningDialog,
+            L.storeAlreadyRunning(viewModel.currentStoreName).resolve(in: language),
+            isPresented: $viewModel.showingStoreRunningDialog,
             titleVisibility: .visible
         ) {
             Button(L.reuse.resolve(in: language)) {
-                viewModel.launchSteamReusingSession()
+                viewModel.launchStoreReusingSession()
             }
             Button(L.restart.resolve(in: language)) {
-                viewModel.launchSteamRestarting()
+                viewModel.launchStoreRestarting()
             }
             Button(L.cancel.resolve(in: language), role: .cancel) {
-                viewModel.cancelSteamLaunchDecision()
+                viewModel.cancelStoreLaunchDecision()
             }
         } message: {
-            Text(L.steamRunningMessage.resolve(in: language))
+            Text(L.storeRunningMessage(viewModel.currentStoreName).resolve(in: language))
         }
     }
 
@@ -180,6 +180,15 @@ struct ContentView: View {
                     Spacer(minLength: 0)
 
                     HStack(spacing: 10) {
+                        Picker(L.launcher.resolve(in: language), selection: $viewModel.selectedLauncher) {
+                            ForEach(GameStoreLauncher.allCases) { launcher in
+                                Text(launcher.label).tag(launcher)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 140)
+                        .disabled(viewModel.isBusy)
+
                         Picker(L.language.resolve(in: language), selection: $viewModel.language) {
                             ForEach(AppLanguage.allCases) { option in
                                 Text(option.label).tag(option)

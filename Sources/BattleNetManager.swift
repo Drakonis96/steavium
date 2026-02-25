@@ -1,32 +1,16 @@
 import CoreGraphics
 import Foundation
 
-actor SteamManager {
-    private struct GameManifestFingerprint: Equatable {
-        let fileName: String
-        let modificationTime: TimeInterval
-        let fileSize: Int64
-    }
-
-    private struct GameLibraryFingerprint: Equatable {
-        let steamRootPath: String
-        let manifests: [GameManifestFingerprint]
-    }
-
-    private struct CachedGameLibraryState {
-        let fingerprint: GameLibraryFingerprint
-        let games: [InstalledGame]
-    }
-
+actor BattleNetManager {
     private let fileManager = FileManager.default
     private let bundledScriptNames = [
         "common.sh",
         "install_prerequisites.sh",
         "install_runtime.sh",
-        "setup_steam.sh",
-        "launch_steam.sh",
-        "stop_steam.sh",
-        "wipe_steam_data.sh"
+        "setup_battlenet.sh",
+        "launch_battlenet.sh",
+        "stop_battlenet.sh",
+        "wipe_battlenet_data.sh"
     ]
     private let appHome: URL
     private let prefixPath: URL
@@ -38,9 +22,7 @@ actor SteamManager {
     private let crossOverRootPath = "/Applications/CrossOver.app/Contents/SharedSupport/CrossOver"
     private let crossOverWrapperWinePath = "/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/CrossOver-Hosted Application/wine"
     private let crossOverUnixWinePath = "/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/lib/wine/x86_64-unix/wine"
-    private let compatibilityLayersRegistryPath = #"HKCU\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"#
     private lazy var cachedHardwareProfile: HardwareProfile = detectHardwareProfile()
-    private var cachedGameLibraryState: CachedGameLibraryState?
     private var didDeployBundledScripts: Bool = false
     private static let diagnosticsTimestampFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -49,7 +31,7 @@ actor SteamManager {
     }()
 
     private var crossOverBottleName: String {
-        ProcessInfo.processInfo.environment["STEAVIUM_CROSSOVER_BOTTLE"] ?? "steavium-steam"
+        ProcessInfo.processInfo.environment["STEAVIUM_CROSSOVER_BOTTLE_BATTLENET"] ?? "steavium-battlenet"
     }
 
     private var crossOverBottlePath: URL {
@@ -61,35 +43,36 @@ actor SteamManager {
         let applicationSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let steaviumHome = applicationSupport.appendingPathComponent("Steavium", isDirectory: true)
         self.appHome = appHome ?? steaviumHome
-        self.prefixPath = self.appHome.appendingPathComponent("prefixes/steam", isDirectory: true)
+        self.prefixPath = self.appHome.appendingPathComponent("prefixes/battlenet", isDirectory: true)
         self.logsPath = self.appHome.appendingPathComponent("logs", isDirectory: true)
         self.cachePath = self.appHome.appendingPathComponent("cache", isDirectory: true)
         self.settingsPath = self.appHome.appendingPathComponent("settings", isDirectory: true)
-        self.gameProfilesPath = self.settingsPath.appendingPathComponent("game-profiles.json")
+        self.gameProfilesPath = self.settingsPath.appendingPathComponent("battlenet-game-profiles.json")
         self.runtimeScriptsPath = self.appHome.appendingPathComponent("runtime/scripts", isDirectory: true)
     }
 
-    nonisolated var storeName: String { "Steam" }
+    nonisolated var storeName: String { "Battle.net" }
 
     func snapshot() -> StoreEnvironment {
         let hardwareProfile = cachedHardwareProfile
-        let steamExecutable = locateSteamExecutable()
+        let battleNetExecutable = locateBattleNetExecutable()
         return StoreEnvironment(
             appHomePath: appHome.path,
             prefixPath: prefixPath.path,
             logsPath: logsPath.path,
             wine64Path: detectWine64(),
-            storeAppInstalled: steamExecutable != nil,
-            storeAppExecutablePath: steamExecutable,
+            storeAppInstalled: battleNetExecutable != nil,
+            storeAppExecutablePath: battleNetExecutable,
             hardwareProfile: hardwareProfile
         )
     }
 
     func gameLibraryState(forceRefresh: Bool = false) -> GameLibraryState {
-        let games = discoverInstalledGames(forceRefresh: forceRefresh)
+        // Battle.net does not use Steam-style .acf manifests.
+        // Return empty for now; a Battle.net-specific scanner can be added later.
         let profiles = (try? GameProfilePersistence.loadProfiles(from: gameProfilesPath)) ?? []
         return GameLibraryState(
-            games: games,
+            games: [],
             profiles: profiles.sorted(by: { $0.appID < $1.appID })
         )
     }
@@ -155,21 +138,21 @@ actor SteamManager {
                         "-fIsS",
                         "--connect-timeout", "8",
                         "--max-time", "12",
-                        "https://cdn.akamai.steamstatic.com"
+                        "https://www.blizzard.com"
                     ]
                 )
                 return RuntimePreflightCheck(
                     kind: .network,
                     status: .ok,
-                    detailEnglish: "Steam CDN is reachable.",
-                    detailSpanish: "El CDN de Steam es accesible."
+                    detailEnglish: "Blizzard servers are reachable.",
+                    detailSpanish: "Los servidores de Blizzard son accesibles."
                 )
             } catch {
                 return RuntimePreflightCheck(
                     kind: .network,
                     status: .failed,
-                    detailEnglish: "Steam CDN is not reachable right now.",
-                    detailSpanish: "El CDN de Steam no es accesible en este momento."
+                    detailEnglish: "Blizzard servers are not reachable right now.",
+                    detailSpanish: "Los servidores de Blizzard no son accesibles en este momento."
                 )
             }
         }()
@@ -259,21 +242,20 @@ actor SteamManager {
         try fileManager.createDirectory(at: diagnosticsFolderURL, withIntermediateDirectories: true)
 
         let environment = snapshot()
-        let libraryState = gameLibraryState(forceRefresh: false)
-        let liveLogURL = logsPath.appendingPathComponent("steam-live.log")
         let reportURL = diagnosticsFolderURL.appendingPathComponent("report.txt")
         let inAppLogURL = diagnosticsFolderURL.appendingPathComponent("in-app-console.log")
+        let liveLogURL = logsPath.appendingPathComponent("battlenet-live.log")
 
         var reportLines: [String] = []
-        reportLines.append("Steavium Diagnostics")
+        reportLines.append("Steavium Diagnostics (Battle.net)")
         reportLines.append("Generated at: \(ISO8601DateFormatter().string(from: Date()))")
         reportLines.append("")
         reportLines.append("[Environment]")
         reportLines.append("App home: \(environment.appHomePath)")
         reportLines.append("Prefix: \(environment.prefixPath)")
         reportLines.append("Logs: \(environment.logsPath)")
-        reportLines.append("Steam installed: \(environment.storeAppInstalled)")
-        reportLines.append("Steam executable: \(environment.storeAppExecutablePath ?? "-")")
+        reportLines.append("Battle.net installed: \(environment.storeAppInstalled)")
+        reportLines.append("Battle.net executable: \(environment.storeAppExecutablePath ?? "-")")
         reportLines.append("Wine runtime: \(environment.wine64Path ?? "-")")
         reportLines.append("Selected backend: \(selectedBackend.rawValue)")
         reportLines.append("")
@@ -284,13 +266,7 @@ actor SteamManager {
         reportLines.append("CPU layout: \(environment.hardwareProfile.cpuCoreLayout.summary)")
         reportLines.append("Performance tier: \(environment.hardwareProfile.performanceTier.rawValue)")
         reportLines.append("Recommended backend: \(environment.hardwareProfile.recommendedBackend.rawValue)")
-        reportLines.append("Recommended DXVK threads: \(environment.hardwareProfile.recommendedDXVKCompilerThreads)")
-        reportLines.append("Recommended FPS cap: \(environment.hardwareProfile.recommendedFPSCap.map(String.init) ?? "-")")
         reportLines.append("Display: \(environment.hardwareProfile.displayResolutionIdentifier)")
-        reportLines.append("")
-        reportLines.append("[Library]")
-        reportLines.append("Installed games: \(libraryState.games.count)")
-        reportLines.append("Saved profiles: \(libraryState.profiles.count)")
         reportLines.append("")
         reportLines.append("[Preflight]")
         for check in preflightReport.checks {
@@ -308,7 +284,7 @@ actor SteamManager {
         }
 
         if fileManager.fileExists(atPath: liveLogURL.path) {
-            let destination = diagnosticsFolderURL.appendingPathComponent("steam-live.log")
+            let destination = diagnosticsFolderURL.appendingPathComponent("battlenet-live.log")
             if fileManager.fileExists(atPath: destination.path) {
                 try fileManager.removeItem(at: destination)
             }
@@ -316,7 +292,7 @@ actor SteamManager {
         }
 
         if fileManager.fileExists(atPath: gameProfilesPath.path) {
-            let destination = diagnosticsFolderURL.appendingPathComponent("game-profiles.json")
+            let destination = diagnosticsFolderURL.appendingPathComponent("battlenet-game-profiles.json")
             if fileManager.fileExists(atPath: destination.path) {
                 try fileManager.removeItem(at: destination)
             }
@@ -353,36 +329,20 @@ actor SteamManager {
         }
         try persistProfilesDictionary(profilesByAppID)
 
-        let logs = try synchronizeGameProfiles(
-            profilesByAppID: profilesByAppID,
-            targetAppIDs: [normalized.appID]
-        )
         let messagePrefix = normalized.hasOverrides
             ? "Profile saved for AppID \(normalized.appID)."
             : "Profile reset for AppID \(normalized.appID)."
-        if logs.isEmpty {
-            return messagePrefix
-        }
-        return ([messagePrefix] + logs).joined(separator: "\n")
+        return messagePrefix
     }
 
     func removeGameCompatibilityProfile(appID: Int) async throws -> String {
         try prepareDirectories()
 
         var profilesByAppID = try loadProfilesDictionary()
-        let removed = profilesByAppID.removeValue(forKey: appID)
+        profilesByAppID.removeValue(forKey: appID)
         try persistProfilesDictionary(profilesByAppID)
 
-        let logs = try synchronizeGameProfiles(
-            profilesByAppID: profilesByAppID,
-            targetAppIDs: [appID],
-            removedProfiles: removed.map { [appID: $0] } ?? [:]
-        )
-        let messagePrefix = "Profile removed for AppID \(appID)."
-        if logs.isEmpty {
-            return messagePrefix
-        }
-        return ([messagePrefix] + logs).joined(separator: "\n")
+        return "Profile removed for AppID \(appID)."
     }
 
     func installPrerequisites() async throws -> String {
@@ -417,13 +377,12 @@ actor SteamManager {
             throw StoreManagerError.wineRuntimeNotFound
         }
 
-        let script = try materializeScript(named: "setup_steam.sh")
+        let script = try materializeScript(named: "setup_battlenet.sh")
         let result = try await ShellRunner.runAsync(
             executable: "/bin/bash",
             arguments: [script.path],
             environment: scriptEnvironment(gameLibraryPath: gameLibraryPath)
         )
-        invalidateGameLibraryCache()
 
         return result.output
     }
@@ -438,13 +397,7 @@ actor SteamManager {
             throw StoreManagerError.wineRuntimeNotFound
         }
 
-        let profilesByAppID = try loadProfilesDictionary()
-        let syncLogs = try synchronizeGameProfiles(
-            profilesByAppID: profilesByAppID,
-            targetAppIDs: Array(profilesByAppID.keys)
-        )
-
-        let script = try materializeScript(named: "launch_steam.sh")
+        let script = try materializeScript(named: "launch_battlenet.sh")
         let hardwareProfile = cachedHardwareProfile
         var environment = scriptEnvironment(gameLibraryPath: gameLibraryPath)
         environment["STEAVIUM_GRAPHICS_BACKEND"] = graphicsBackend.rawValue
@@ -456,17 +409,9 @@ actor SteamManager {
         environment["STEAVIUM_DEVICE_LOGICAL_CORES"] = "\(hardwareProfile.cpuCoreLayout.logicalCores)"
         environment["STEAVIUM_PERFORMANCE_TIER"] = hardwareProfile.performanceTier.rawValue
         environment["STEAVIUM_RECOMMENDED_BACKEND"] = hardwareProfile.recommendedBackend.rawValue
-        environment["STEAVIUM_RECOMMENDED_DXVK_COMPILER_THREADS"] = "\(hardwareProfile.recommendedDXVKCompilerThreads)"
-        environment["STEAVIUM_RECOMMENDED_FPS_CAP"] = hardwareProfile.recommendedFPSCap.map(String.init) ?? ""
         environment["STEAVIUM_DISPLAY_REFRESH_RATE"] = "\(hardwareProfile.displayRefreshRate)"
 
-        // Launch the script directly as a child process (fire-and-forget)
-        // instead of using --detached + nohup. This keeps Wine in the
-        // app's GUI session so its windows are visible — nohup'd workers
-        // reparented to launchd can lose window-server access on macOS,
-        // which causes Steam's window to never appear when the app is
-        // installed from a DMG.
-        let liveLogURL = logsPath.appendingPathComponent("steam-live.log")
+        let liveLogURL = logsPath.appendingPathComponent("battlenet-live.log")
         try ShellRunner.runFireAndForget(
             executable: "/bin/bash",
             arguments: [
@@ -478,18 +423,13 @@ actor SteamManager {
             outputFile: liveLogURL
         )
 
-        let launchMessage = "Steam launched. Log: \(liveLogURL.path)"
-        if syncLogs.isEmpty {
-            return launchMessage
-        }
-        let syncOutput = syncLogs.joined(separator: "\n")
-        return "[per-game]\n\(syncOutput)\n\n\(launchMessage)"
+        return "Battle.net launched. Log: \(liveLogURL.path)"
     }
 
     func stopStoreCompletely() async throws -> String {
         try prepareDirectories()
 
-        let script = try materializeScript(named: "stop_steam.sh")
+        let script = try materializeScript(named: "stop_battlenet.sh")
         let result = try await ShellRunner.runAsync(
             executable: "/bin/bash",
             arguments: [script.path],
@@ -500,11 +440,10 @@ actor SteamManager {
     }
 
     func isStoreRunning() async -> Bool {
-        let steamPattern = #"^C:\\Program Files( \(x86\))?\\Steam\\[sS]team\.exe( |$)"#
         do {
             _ = try await ShellRunner.runAsync(
                 executable: "/usr/bin/pgrep",
-                arguments: ["-f", steamPattern]
+                arguments: ["-f", "Battle.net"]
             )
             return true
         } catch {
@@ -513,17 +452,13 @@ actor SteamManager {
     }
 
     func isStoreWindowVisible() async -> Bool {
-        // Use AppleScript to check whether any visible window exists
-        // in the Wine/CrossOver host process that contains "Steam".
-        // This is far more accurate than pgrep, which detects the
-        // process before the UI has loaded.
         let script = """
         tell application "System Events"
             set wList to every process whose visible is true
             repeat with p in wList
                 try
                     set pName to name of p
-                    if pName contains "steam" or pName contains "Steam" or pName contains "wine" or pName contains "Wine" or pName contains "CrossOver" then
+                    if pName contains "Battle.net" or pName contains "Blizzard" or pName contains "wine" or pName contains "Wine" or pName contains "CrossOver" then
                         if (count of windows of p) > 0 then
                             return true
                         end if
@@ -553,7 +488,7 @@ actor SteamManager {
             throw StoreManagerError.dataWipeSelectionRequired
         }
 
-        let script = try materializeScript(named: "wipe_steam_data.sh")
+        let script = try materializeScript(named: "wipe_battlenet_data.sh")
         var arguments = [script.path]
         if clearAccountData {
             arguments.append("--account")
@@ -567,17 +502,15 @@ actor SteamManager {
             arguments: arguments,
             environment: scriptEnvironment(gameLibraryPath: nil)
         )
-        invalidateGameLibraryCache()
 
         return result.output
     }
 
+    // MARK: - Private helpers
+
     private func scriptEnvironment(gameLibraryPath: String?) -> [String: String] {
         var environment: [String: String] = ["STEAVIUM_HOME": appHome.path]
 
-        // Ensure Homebrew and common binary paths are always reachable,
-        // even when the app is launched from Finder (which provides a
-        // minimal PATH like /usr/bin:/bin:/usr/sbin:/sbin).
         let currentPath = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
         if !currentPath.contains("/opt/homebrew/bin") {
             environment["PATH"] = "/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:\(currentPath)"
@@ -743,113 +676,21 @@ actor SteamManager {
         return nil
     }
 
-    private func locateSteamExecutable() -> String? {
-        let crossOverBottleName = ProcessInfo.processInfo.environment["STEAVIUM_CROSSOVER_BOTTLE"] ?? "steavium-steam"
-        let crossOverBottlePath = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/CrossOver/Bottles/\(crossOverBottleName)")
+    private func locateBattleNetExecutable() -> String? {
+        let crossOverBottlePath = self.crossOverBottlePath
 
-        let candidates: [(exe: String, manifest: String)] = [
-            (
-                crossOverBottlePath.appendingPathComponent("drive_c/Program Files (x86)/Steam/steam.exe").path,
-                crossOverBottlePath.appendingPathComponent("drive_c/Program Files (x86)/Steam/package/steam_client_win64.installed").path
-            ),
-            (
-                crossOverBottlePath.appendingPathComponent("drive_c/Program Files/Steam/Steam.exe").path,
-                crossOverBottlePath.appendingPathComponent("drive_c/Program Files/Steam/package/steam_client_win64.installed").path
-            ),
-            (
-                prefixPath.appendingPathComponent("drive_c/Program Files (x86)/Steam/steam.exe").path,
-                prefixPath.appendingPathComponent("drive_c/Program Files (x86)/Steam/package/steam_client_win64.installed").path
-            ),
-            (
-                prefixPath.appendingPathComponent("drive_c/Program Files/Steam/steam.exe").path,
-                prefixPath.appendingPathComponent("drive_c/Program Files/Steam/package/steam_client_win64.installed").path
-            )
+        let candidates = [
+            crossOverBottlePath.appendingPathComponent("drive_c/Program Files (x86)/Battle.net/Battle.net Launcher.exe").path,
+            crossOverBottlePath.appendingPathComponent("drive_c/Program Files (x86)/Battle.net/Battle.net.exe").path,
+            prefixPath.appendingPathComponent("drive_c/Program Files (x86)/Battle.net/Battle.net Launcher.exe").path,
+            prefixPath.appendingPathComponent("drive_c/Program Files (x86)/Battle.net/Battle.net.exe").path
         ]
 
-        for candidate in candidates
-            where fileManager.fileExists(atPath: candidate.exe) && fileManager.fileExists(atPath: candidate.manifest) {
-            return candidate.exe
-        }
-
-        for candidate in candidates where fileManager.fileExists(atPath: candidate.exe) {
-            return candidate.exe
+        for candidate in candidates where fileManager.fileExists(atPath: candidate) {
+            return candidate
         }
 
         return nil
-    }
-
-    private func discoverInstalledGames(forceRefresh: Bool = false) -> [InstalledGame] {
-        guard let steamExecutablePath = locateSteamExecutable() else {
-            invalidateGameLibraryCache()
-            return []
-        }
-        let steamRoot = GameLibraryScanner.steamRoot(steamExecutablePath: steamExecutablePath)
-
-        let fingerprint = gameLibraryFingerprint(steamRoot: steamRoot)
-        if !forceRefresh,
-           let cachedGameLibraryState,
-           cachedGameLibraryState.fingerprint == fingerprint {
-            return cachedGameLibraryState.games
-        }
-
-        let games = GameLibraryScanner.discoverInstalledGames(steamRoot: steamRoot, fileManager: fileManager)
-        cachedGameLibraryState = CachedGameLibraryState(
-            fingerprint: fingerprint,
-            games: games
-        )
-        return games
-    }
-
-    private func steamRootURL() -> URL? {
-        guard let steamExecutablePath = locateSteamExecutable() else {
-            return nil
-        }
-        return GameLibraryScanner.steamRoot(steamExecutablePath: steamExecutablePath)
-    }
-
-    private func invalidateGameLibraryCache() {
-        cachedGameLibraryState = nil
-    }
-
-    private func gameLibraryFingerprint(steamRoot: URL) -> GameLibraryFingerprint {
-        let steamAppsPath = steamRoot.appendingPathComponent("steamapps", isDirectory: true)
-        let keys: Set<URLResourceKey> = [.isRegularFileKey, .contentModificationDateKey, .fileSizeKey]
-        guard let manifestURLs = try? fileManager.contentsOfDirectory(
-            at: steamAppsPath,
-            includingPropertiesForKeys: Array(keys),
-            options: [.skipsHiddenFiles]
-        ) else {
-            return GameLibraryFingerprint(
-                steamRootPath: steamRoot.path,
-                manifests: []
-            )
-        }
-
-        let manifests = manifestURLs
-            .filter { $0.lastPathComponent.hasPrefix("appmanifest_") && $0.pathExtension.lowercased() == "acf" }
-            .compactMap { manifestURL -> GameManifestFingerprint? in
-                guard let resourceValues = try? manifestURL.resourceValues(forKeys: keys),
-                      resourceValues.isRegularFile == true else {
-                    return nil
-                }
-
-                let modificationTime = resourceValues.contentModificationDate?.timeIntervalSince1970 ?? 0
-                let fileSize = Int64(resourceValues.fileSize ?? 0)
-                return GameManifestFingerprint(
-                    fileName: manifestURL.lastPathComponent,
-                    modificationTime: modificationTime,
-                    fileSize: fileSize
-                )
-            }
-            .sorted { lhs, rhs in
-                lhs.fileName < rhs.fileName
-            }
-
-        return GameLibraryFingerprint(
-            steamRootPath: steamRoot.path,
-            manifests: manifests
-        )
     }
 
     private func loadProfilesDictionary() throws -> [Int: GameCompatibilityProfile] {
@@ -862,356 +703,6 @@ actor SteamManager {
             Array(profilesByAppID.values),
             to: gameProfilesPath,
             fileManager: fileManager
-        )
-    }
-
-    private func synchronizeGameProfiles(
-        profilesByAppID: [Int: GameCompatibilityProfile],
-        targetAppIDs: [Int],
-        removedProfiles: [Int: GameCompatibilityProfile] = [:]
-    ) throws -> [String] {
-        guard !targetAppIDs.isEmpty else {
-            return []
-        }
-
-        guard let steamRoot = steamRootURL() else {
-            return ["Steam not found: profile saved and will be applied when Steam is available."]
-        }
-
-        let games = discoverInstalledGames(forceRefresh: false)
-        let gamesByAppID = Dictionary(uniqueKeysWithValues: games.map { ($0.appID, $0) })
-        let localConfigPaths = GameLibraryScanner.locateLocalConfigFiles(steamRoot: steamRoot, fileManager: fileManager)
-
-        var output: [String] = []
-        var compatibilityLayerValues: [String: String] = [:]
-        do {
-            compatibilityLayerValues = try compatibilityLayerRegistryValues()
-        } catch {
-            output.append("[CompatLayer] Failed to read current registry state: \(error.localizedDescription)")
-        }
-        if localConfigPaths.isEmpty {
-            output.append("localconfig.vdf not found (Steam has not been signed into yet).")
-        }
-
-        for appID in targetAppIDs.sorted() {
-            let activeProfile = profilesByAppID[appID]
-            let previousProfile = removedProfiles[appID]
-            let profileForExecutable = activeProfile ?? previousProfile
-            let game = gamesByAppID[appID]
-            let forceWindowed = activeProfile?.forceWindowed ?? false
-
-            for localConfig in localConfigPaths {
-                do {
-                    let changed = try synchronizeLaunchOptions(
-                        appID: appID,
-                        forceWindowed: forceWindowed,
-                        localConfigURL: localConfig
-                    )
-                    if changed {
-                        output.append("[LaunchOptions] AppID \(appID) updated in \(localConfig.path).")
-                    }
-                } catch {
-                    output.append("[LaunchOptions] AppID \(appID) failed in \(localConfig.path): \(error.localizedDescription)")
-                }
-            }
-
-            guard let profileForExecutable else {
-                continue
-            }
-
-            do {
-                if let compatLog = try synchronizeCompatibilityLayer(
-                    appID: appID,
-                    game: game,
-                    profileForExecutable: profileForExecutable,
-                    activeProfile: activeProfile,
-                    compatibilityLayerValues: &compatibilityLayerValues
-                ) {
-                    output.append(compatLog)
-                }
-            } catch {
-                output.append("[CompatLayer] AppID \(appID) error: \(error.localizedDescription)")
-            }
-        }
-
-        return output
-    }
-
-    private func synchronizeLaunchOptions(
-        appID: Int,
-        forceWindowed: Bool,
-        localConfigURL: URL
-    ) throws -> Bool {
-        let content = try String(contentsOf: localConfigURL, encoding: .utf8)
-        var document = try ValveKeyValueDocument.parse(content)
-
-        let path = [
-            "UserLocalConfigStore", "Software", "Valve", "Steam", "apps", "\(appID)", "LaunchOptions"
-        ]
-        let existingLaunchOptions = document.string(at: path) ?? ""
-        let managedSegment = GameLaunchOptionsComposer.managedSegment(forceWindowed: forceWindowed)
-        let mergedLaunchOptions = GameLaunchOptionsComposer.merge(
-            existing: existingLaunchOptions,
-            managedSegment: managedSegment
-        )
-
-        if mergedLaunchOptions.isEmpty {
-            document.removeValue(at: path)
-        } else {
-            document.setString(mergedLaunchOptions, at: path)
-        }
-
-        let updatedContent = document.serialized()
-        guard updatedContent != content else {
-            return false
-        }
-
-        do {
-            try updatedContent.write(to: localConfigURL, atomically: true, encoding: .utf8)
-        } catch {
-            throw StoreManagerError.gameProfileLocalConfigWriteFailed(path: localConfigURL.path)
-        }
-        return true
-    }
-
-    private func synchronizeCompatibilityLayer(
-        appID: Int,
-        game: InstalledGame?,
-        profileForExecutable: GameCompatibilityProfile,
-        activeProfile: GameCompatibilityProfile?,
-        compatibilityLayerValues: inout [String: String]
-    ) throws -> String? {
-        let selectedRelativeExecutable = profileForExecutable.executableRelativePath
-        guard let executablePath = resolveExecutablePath(
-            game: game,
-            selectedRelativeExecutable: selectedRelativeExecutable
-        ) else {
-            if activeProfile?.compatibilityLayerFlags.isEmpty == false || activeProfile == nil {
-                return "[CompatLayer] AppID \(appID): could not resolve executable to apply flags."
-            }
-            return nil
-        }
-
-        guard let windowsExecutablePath = GameLibraryScanner.resolveWindowsPath(fromUnixPath: executablePath) else {
-            return "[CompatLayer] AppID \(appID): path outside drive_c, not applicable."
-        }
-
-        let escapedWindowsPath = escapedRegistryValueName(for: windowsExecutablePath)
-        let currentRawFlags = compatibilityLayerValues[windowsExecutablePath] ?? compatibilityLayerValues[escapedWindowsPath]
-        let currentFlags = normalizedFlagSet(from: currentRawFlags ?? "")
-        let newFlags = activeProfile?.compatibilityLayerFlags ?? []
-        let expectedFlags = Set(newFlags)
-        if newFlags.isEmpty {
-            guard !currentFlags.isEmpty else {
-                return nil
-            }
-            try removeCompatibilityLayerFlags(
-                windowsExecutablePath: windowsExecutablePath,
-                compatibilityLayerValues: &compatibilityLayerValues
-            )
-            return "[CompatLayer] AppID \(appID): compatibility flags removed."
-        }
-
-        guard currentFlags != expectedFlags else {
-            return nil
-        }
-
-        let value = newFlags.joined(separator: " ")
-        try setCompatibilityLayerFlags(
-            windowsExecutablePath: windowsExecutablePath,
-            flagsValue: value,
-            compatibilityLayerValues: &compatibilityLayerValues
-        )
-        return "[CompatLayer] AppID \(appID): flags applied (\(value))."
-    }
-
-    private func resolveExecutablePath(
-        game: InstalledGame?,
-        selectedRelativeExecutable: String?
-    ) -> String? {
-        guard let game else {
-            return nil
-        }
-
-        let selected = selectedRelativeExecutable?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !selected.isEmpty {
-            let selectedPath = URL(fileURLWithPath: game.installDirectoryPath)
-                .appendingPathComponent(selected)
-                .path
-            if fileManager.fileExists(atPath: selectedPath) {
-                return selectedPath
-            }
-        }
-
-        if let defaultRelative = game.defaultExecutableRelativePath {
-            let defaultPath = URL(fileURLWithPath: game.installDirectoryPath)
-                .appendingPathComponent(defaultRelative)
-                .path
-            if fileManager.fileExists(atPath: defaultPath) {
-                return defaultPath
-            }
-        }
-
-        return nil
-    }
-
-    private func setCompatibilityLayerFlags(
-        windowsExecutablePath: String,
-        flagsValue: String,
-        compatibilityLayerValues: inout [String: String]
-    ) throws {
-        let escapedWindowsPath = escapedRegistryValueName(for: windowsExecutablePath)
-        if escapedWindowsPath != windowsExecutablePath {
-            try removeCompatibilityLayerValue(windowsExecutablePath: escapedWindowsPath)
-        }
-
-        _ = try runWineRegistryCommand(
-            arguments: [
-                "reg",
-                "add",
-                compatibilityLayersRegistryPath,
-                "/v",
-                windowsExecutablePath,
-                "/t",
-                "REG_SZ",
-                "/d",
-                flagsValue,
-                "/f"
-            ]
-        )
-        compatibilityLayerValues[windowsExecutablePath] = flagsValue
-        compatibilityLayerValues.removeValue(forKey: escapedWindowsPath)
-    }
-
-    private func removeCompatibilityLayerFlags(
-        windowsExecutablePath: String,
-        compatibilityLayerValues: inout [String: String]
-    ) throws {
-        try removeCompatibilityLayerValue(windowsExecutablePath: windowsExecutablePath)
-        let escapedWindowsPath = escapedRegistryValueName(for: windowsExecutablePath)
-        if escapedWindowsPath != windowsExecutablePath {
-            try removeCompatibilityLayerValue(windowsExecutablePath: escapedWindowsPath)
-        }
-        compatibilityLayerValues.removeValue(forKey: windowsExecutablePath)
-        compatibilityLayerValues.removeValue(forKey: escapedWindowsPath)
-    }
-
-    private func removeCompatibilityLayerValue(windowsExecutablePath: String) throws {
-        do {
-            _ = try runWineRegistryCommand(
-                arguments: [
-                    "reg",
-                    "delete",
-                    compatibilityLayersRegistryPath,
-                    "/v",
-                    windowsExecutablePath,
-                    "/f"
-                ]
-            )
-        } catch let ShellError.exitedNonZero(_, _, output) where isMissingRegistryObjectOutput(output) {
-            // Missing values are acceptable when resetting a profile.
-        }
-    }
-
-    private func compatibilityLayerRegistryValues() throws -> [String: String] {
-        let queryResult: ShellResult
-        do {
-            queryResult = try runWineRegistryCommand(
-                arguments: [
-                    "reg",
-                    "query",
-                    compatibilityLayersRegistryPath
-                ]
-            )
-        } catch let ShellError.exitedNonZero(_, _, output) where isMissingRegistryObjectOutput(output) {
-            return [:]
-        }
-
-        var values: [String: String] = [:]
-        for line in queryResult.output.split(whereSeparator: \.isNewline) {
-            let trimmedLine = String(line).trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmedLine.isEmpty, !trimmedLine.hasPrefix("HKEY_") else {
-                continue
-            }
-            guard let separatorRange = trimmedLine.range(of: "REG_SZ") else {
-                continue
-            }
-
-            let valueName = trimmedLine[..<separatorRange.lowerBound]
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            let valueData = trimmedLine[separatorRange.upperBound...]
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            if !valueName.isEmpty {
-                values[valueName] = valueData
-            }
-        }
-        return values
-    }
-
-    private func normalizedFlagSet(from flagsValue: String) -> Set<String> {
-        Set(
-            flagsValue
-                .split(whereSeparator: \.isWhitespace)
-                .map(String.init)
-        )
-    }
-
-    private func escapedRegistryValueName(for windowsExecutablePath: String) -> String {
-        windowsExecutablePath.replacingOccurrences(of: "\\", with: "\\\\")
-    }
-
-    private func isMissingRegistryObjectOutput(_ output: String) -> Bool {
-        let normalizedOutput = output.lowercased()
-        return normalizedOutput.contains("unable to find") ||
-            normalizedOutput.contains("cannot find") ||
-            normalizedOutput.contains("could not find") ||
-            normalizedOutput.contains("no se pudo encontrar")
-    }
-
-    private func runWineRegistryCommand(arguments: [String]) throws -> ShellResult {
-        if fileManager.isExecutableFile(atPath: crossOverUnixWinePath),
-           fileManager.fileExists(atPath: crossOverBottlePath.path) {
-            var environment = scriptEnvironment(gameLibraryPath: nil)
-            environment["CX_ROOT"] = crossOverRootPath
-            environment["WINEPREFIX"] = crossOverBottlePath.path
-            environment["WINEARCH"] = "win64"
-            environment["WINEESYNC"] = "1"
-            environment["WINEFSYNC"] = "1"
-            environment["WINEMSYNC"] = "1"
-            return try ShellRunner.run(
-                executable: crossOverUnixWinePath,
-                arguments: arguments,
-                environment: environment
-            )
-        }
-
-        if fileManager.isExecutableFile(atPath: crossOverWrapperWinePath),
-           fileManager.fileExists(atPath: crossOverBottlePath.path) {
-            var environment = scriptEnvironment(gameLibraryPath: nil)
-            environment["WINEESYNC"] = "1"
-            environment["WINEFSYNC"] = "1"
-            environment["WINEMSYNC"] = "1"
-            return try ShellRunner.run(
-                executable: crossOverWrapperWinePath,
-                arguments: ["--no-gui", "--bottle", crossOverBottleName] + arguments,
-                environment: environment
-            )
-        }
-
-        guard let wineExecutable = detectWine64() else {
-            throw StoreManagerError.wineRuntimeNotFound
-        }
-
-        var environment = scriptEnvironment(gameLibraryPath: nil)
-        environment["WINEPREFIX"] = prefixPath.path
-        environment["WINEARCH"] = "win64"
-        environment["WINEESYNC"] = "1"
-        environment["WINEFSYNC"] = "1"
-        environment["WINEMSYNC"] = "1"
-        return try ShellRunner.run(
-            executable: wineExecutable,
-            arguments: arguments,
-            environment: environment
         )
     }
 
@@ -1258,7 +749,6 @@ actor SteamManager {
             return 60
         }
         let rate = Int(displayMode.refreshRate)
-        // Some displays report 0 Hz (e.g. virtual displays); default to 60.
         return rate > 0 ? rate : 60
     }
 
@@ -1353,97 +843,46 @@ actor SteamManager {
 
     private func classifyChipFamily(from chipModel: String) -> AppleChipFamily {
         let normalized = chipModel.lowercased()
-        if normalized.contains("m5") {
-            return .m5
-        }
-        if normalized.contains("m4") {
-            return .m4
-        }
-        if normalized.contains("m3") {
-            return .m3
-        }
-        if normalized.contains("m2") {
-            return .m2
-        }
-        if normalized.contains("m1") {
-            return .m1
-        }
-        if normalized.contains("intel") {
-            return .intel
-        }
-        if normalized.contains("apple") {
-            return .appleSiliconOther
-        }
+        if normalized.contains("m5") { return .m5 }
+        if normalized.contains("m4") { return .m4 }
+        if normalized.contains("m3") { return .m3 }
+        if normalized.contains("m2") { return .m2 }
+        if normalized.contains("m1") { return .m1 }
+        if normalized.contains("intel") { return .intel }
+        if normalized.contains("apple") { return .appleSiliconOther }
         return .unknown
     }
 
     private func classifyPerformanceTier(chipFamily: AppleChipFamily, memoryGB: Int) -> PerformanceTier {
         switch chipFamily {
         case .m5:
-            // M5: ~7.4 TFLOPS GPU, 153 GB/s bandwidth, 3rd-gen ray tracing.
-            // 45% graphics uplift over M4 justifies aggressive tiers.
-            if memoryGB >= 16 {
-                return .extreme
-            }
-            if memoryGB >= 8 {
-                return .performance
-            }
+            if memoryGB >= 16 { return .extreme }
+            if memoryGB >= 8 { return .performance }
             return .balanced
         case .m4:
-            // M4: ~5.3 TFLOPS GPU, 120 GB/s bandwidth, improved ray tracing.
-            if memoryGB >= 24 {
-                return .extreme
-            }
-            if memoryGB >= 16 {
-                return .performance
-            }
+            if memoryGB >= 24 { return .extreme }
+            if memoryGB >= 16 { return .performance }
             return .balanced
         case .m3:
-            // M3: ~4.1 TFLOPS GPU, 100 GB/s, HW ray tracing + dynamic caching.
-            if memoryGB >= 32 {
-                return .extreme
-            }
-            if memoryGB >= 16 {
-                return .performance
-            }
-            if memoryGB >= 8 {
-                return .balanced
-            }
+            if memoryGB >= 32 { return .extreme }
+            if memoryGB >= 16 { return .performance }
+            if memoryGB >= 8 { return .balanced }
             return .economy
         case .m2:
-            // M2: ~3.6 TFLOPS GPU, 100 GB/s bandwidth — ~35% more GPU
-            // power than M1. Previous thresholds undervalued the M2.
-            if memoryGB >= 16 {
-                return .performance
-            }
-            if memoryGB >= 8 {
-                return .balanced
-            }
+            if memoryGB >= 16 { return .performance }
+            if memoryGB >= 8 { return .balanced }
             return .economy
         case .m1:
-            // M1: ~2.6 TFLOPS GPU, 68 GB/s bandwidth — baseline Apple Silicon.
-            if memoryGB >= 32 {
-                return .performance
-            }
-            if memoryGB >= 16 {
-                return .balanced
-            }
+            if memoryGB >= 32 { return .performance }
+            if memoryGB >= 16 { return .balanced }
             return .economy
         case .appleSiliconOther:
-            if memoryGB >= 16 {
-                return .performance
-            }
-            if memoryGB >= 8 {
-                return .balanced
-            }
+            if memoryGB >= 16 { return .performance }
+            if memoryGB >= 8 { return .balanced }
             return .economy
         case .intel, .unknown:
-            if memoryGB >= 32 {
-                return .performance
-            }
-            if memoryGB >= 16 {
-                return .balanced
-            }
+            if memoryGB >= 32 { return .performance }
+            if memoryGB >= 16 { return .balanced }
             return .economy
         }
     }

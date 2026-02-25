@@ -15,30 +15,30 @@ final class LaunchPhaseTests: XCTestCase {
         XCTAssertEqual(phase.estimatedProgress, 0.25, accuracy: 0.001)
     }
 
-    func testWaitingForSteamProgressIncreasesWithTime() {
-        let early = LaunchPhase.waitingForSteam(elapsedSeconds: 1)
-        let mid = LaunchPhase.waitingForSteam(elapsedSeconds: 10)
-        let late = LaunchPhase.waitingForSteam(elapsedSeconds: 30)
+    func testWaitingForStoreProgressIncreasesWithTime() {
+        let early = LaunchPhase.waitingForStore(elapsedSeconds: 1)
+        let mid = LaunchPhase.waitingForStore(elapsedSeconds: 10)
+        let late = LaunchPhase.waitingForStore(elapsedSeconds: 30)
 
         XCTAssertGreaterThan(mid.estimatedProgress, early.estimatedProgress)
         XCTAssertGreaterThan(late.estimatedProgress, mid.estimatedProgress)
     }
 
-    func testWaitingForSteamProgressNeverExceedsNinetyFive() {
+    func testWaitingForStoreProgressNeverExceedsNinetyFive() {
         // Even at very large elapsed times, progress should stay < 1.0
-        let extreme = LaunchPhase.waitingForSteam(elapsedSeconds: 300)
+        let extreme = LaunchPhase.waitingForStore(elapsedSeconds: 300)
         XCTAssertLessThan(extreme.estimatedProgress, 1.0)
     }
 
-    func testWaitingForSteamProgressStartsAboveSpawning() {
+    func testWaitingForStoreProgressStartsAboveSpawning() {
         let spawning = LaunchPhase.spawningProcess
-        let waitingStart = LaunchPhase.waitingForSteam(elapsedSeconds: 0)
+        let waitingStart = LaunchPhase.waitingForStore(elapsedSeconds: 0)
         // At elapsed=0, the waiting phase should equal spawning (base = 0.25)
         XCTAssertEqual(waitingStart.estimatedProgress, spawning.estimatedProgress, accuracy: 0.001)
     }
 
-    func testSteamDetectedProgressIsOne() {
-        let phase = LaunchPhase.steamDetected
+    func testStoreDetectedProgressIsOne() {
+        let phase = LaunchPhase.storeDetected
         XCTAssertEqual(phase.estimatedProgress, 1.0, accuracy: 0.001)
     }
 
@@ -46,15 +46,15 @@ final class LaunchPhaseTests: XCTestCase {
         let phases: [LaunchPhase] = [
             .preparingEnvironment,
             .spawningProcess,
-            .waitingForSteam(elapsedSeconds: 0),
-            .waitingForSteam(elapsedSeconds: 5),
-            .waitingForSteam(elapsedSeconds: 15),
-            .waitingForSteam(elapsedSeconds: 30),
-            .steamProcessStarted(elapsedSeconds: 0),
-            .steamProcessStarted(elapsedSeconds: 5),
-            .steamProcessStarted(elapsedSeconds: 15),
-            .steamProcessStarted(elapsedSeconds: 30),
-            .steamDetected
+            .waitingForStore(elapsedSeconds: 0),
+            .waitingForStore(elapsedSeconds: 5),
+            .waitingForStore(elapsedSeconds: 15),
+            .waitingForStore(elapsedSeconds: 30),
+            .storeProcessStarted(elapsedSeconds: 0),
+            .storeProcessStarted(elapsedSeconds: 5),
+            .storeProcessStarted(elapsedSeconds: 15),
+            .storeProcessStarted(elapsedSeconds: 30),
+            .storeDetected
         ]
 
         for i in 1..<phases.count {
@@ -72,9 +72,9 @@ final class LaunchPhaseTests: XCTestCase {
         let phases: [LaunchPhase] = [
             .preparingEnvironment,
             .spawningProcess,
-            .waitingForSteam(elapsedSeconds: 5),
-            .steamProcessStarted(elapsedSeconds: 3),
-            .steamDetected
+            .waitingForStore(elapsedSeconds: 5),
+            .storeProcessStarted(elapsedSeconds: 3),
+            .storeDetected
         ]
 
         for phase in phases {
@@ -86,7 +86,7 @@ final class LaunchPhaseTests: XCTestCase {
     }
 
     func testWaitingTitleIncludesElapsedSeconds() {
-        let phase = LaunchPhase.waitingForSteam(elapsedSeconds: 12)
+        let phase = LaunchPhase.waitingForStore(elapsedSeconds: 12)
         let title = phase.title(in: .english)
         XCTAssertTrue(title.contains("12"), "Title should contain the elapsed seconds: \(title)")
     }
@@ -96,46 +96,46 @@ final class LaunchPhaseTests: XCTestCase {
     func testEquatableForSamePhase() {
         XCTAssertEqual(LaunchPhase.preparingEnvironment, LaunchPhase.preparingEnvironment)
         XCTAssertEqual(LaunchPhase.spawningProcess, LaunchPhase.spawningProcess)
-        XCTAssertEqual(LaunchPhase.steamDetected, LaunchPhase.steamDetected)
+        XCTAssertEqual(LaunchPhase.storeDetected, LaunchPhase.storeDetected)
         XCTAssertEqual(
-            LaunchPhase.waitingForSteam(elapsedSeconds: 5),
-            LaunchPhase.waitingForSteam(elapsedSeconds: 5)
+            LaunchPhase.waitingForStore(elapsedSeconds: 5),
+            LaunchPhase.waitingForStore(elapsedSeconds: 5)
         )
     }
 
     func testEquatableForDifferentElapsed() {
         XCTAssertNotEqual(
-            LaunchPhase.waitingForSteam(elapsedSeconds: 5),
-            LaunchPhase.waitingForSteam(elapsedSeconds: 10)
+            LaunchPhase.waitingForStore(elapsedSeconds: 5),
+            LaunchPhase.waitingForStore(elapsedSeconds: 10)
         )
     }
 
     func testEquatableForDifferentPhases() {
         XCTAssertNotEqual(LaunchPhase.preparingEnvironment, LaunchPhase.spawningProcess)
-        XCTAssertNotEqual(LaunchPhase.spawningProcess, LaunchPhase.steamDetected)
-        XCTAssertNotEqual(LaunchPhase.steamProcessStarted(elapsedSeconds: 5), LaunchPhase.waitingForSteam(elapsedSeconds: 5))
+        XCTAssertNotEqual(LaunchPhase.spawningProcess, LaunchPhase.storeDetected)
+        XCTAssertNotEqual(LaunchPhase.storeProcessStarted(elapsedSeconds: 5), LaunchPhase.waitingForStore(elapsedSeconds: 5))
     }
 
-    // MARK: - steamProcessStarted
+    // MARK: - storeProcessStarted
 
     func testProcessStartedProgressIncreasesWithTime() {
-        let early = LaunchPhase.steamProcessStarted(elapsedSeconds: 1)
-        let mid = LaunchPhase.steamProcessStarted(elapsedSeconds: 10)
-        let late = LaunchPhase.steamProcessStarted(elapsedSeconds: 30)
+        let early = LaunchPhase.storeProcessStarted(elapsedSeconds: 1)
+        let mid = LaunchPhase.storeProcessStarted(elapsedSeconds: 10)
+        let late = LaunchPhase.storeProcessStarted(elapsedSeconds: 30)
 
         XCTAssertGreaterThan(mid.estimatedProgress, early.estimatedProgress)
         XCTAssertGreaterThan(late.estimatedProgress, mid.estimatedProgress)
     }
 
     func testProcessStartedProgressNeverReachesOne() {
-        let extreme = LaunchPhase.steamProcessStarted(elapsedSeconds: 300)
+        let extreme = LaunchPhase.storeProcessStarted(elapsedSeconds: 300)
         XCTAssertLessThan(extreme.estimatedProgress, 1.0)
     }
 
     func testProcessStartedStartsAboveWaitingMax() {
-        // steamProcessStarted(0) should be >= waitingForSteam at any reasonable time
-        let waitingLate = LaunchPhase.waitingForSteam(elapsedSeconds: 60)
-        let processStart = LaunchPhase.steamProcessStarted(elapsedSeconds: 0)
+        // storeProcessStarted(0) should be >= waitingForStore at any reasonable time
+        let waitingLate = LaunchPhase.waitingForStore(elapsedSeconds: 60)
+        let processStart = LaunchPhase.storeProcessStarted(elapsedSeconds: 0)
         XCTAssertGreaterThanOrEqual(
             processStart.estimatedProgress,
             waitingLate.estimatedProgress,
@@ -144,7 +144,7 @@ final class LaunchPhaseTests: XCTestCase {
     }
 
     func testProcessStartedTitleIncludesElapsedSeconds() {
-        let phase = LaunchPhase.steamProcessStarted(elapsedSeconds: 7)
+        let phase = LaunchPhase.storeProcessStarted(elapsedSeconds: 7)
         let title = phase.title(in: .english)
         XCTAssertTrue(title.contains("7"), "Title should contain the elapsed seconds: \(title)")
     }

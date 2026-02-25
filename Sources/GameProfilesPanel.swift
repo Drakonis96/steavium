@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct GameProfilesPanel: View {
-    @ObservedObject var viewModel: SteamViewModel
+    @ObservedObject var viewModel: StoreViewModel
     @Binding var gameSearchText: String
     @Binding var showOnlyGamesWithSavedProfiles: Bool
 

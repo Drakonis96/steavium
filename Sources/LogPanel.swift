@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 struct LogPanel: View {
-    @ObservedObject var viewModel: SteamViewModel
+    @ObservedObject var viewModel: StoreViewModel
 
     private var language: AppLanguage { viewModel.language }
 
@@ -132,7 +132,7 @@ struct LaunchProgressView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                if phase == .steamDetected {
+                if phase == .storeDetected {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                         .font(.body)
@@ -143,26 +143,26 @@ struct LaunchProgressView: View {
 
                 Text(phase.title(in: language))
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(phase == .steamDetected ? .green : .primary)
+                    .foregroundStyle(phase == .storeDetected ? .green : .primary)
 
                 Spacer()
             }
 
             ProgressView(value: phase.estimatedProgress, total: 1.0)
                 .progressViewStyle(.linear)
-                .tint(phase == .steamDetected ? .green : .accentColor)
+                .tint(phase == .storeDetected ? .green : .accentColor)
         }
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(phase == .steamDetected
+                .fill(phase == .storeDetected
                       ? Color.green.opacity(0.08)
                       : Color.accentColor.opacity(0.08))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .strokeBorder(
-                    phase == .steamDetected
+                    phase == .storeDetected
                         ? Color.green.opacity(0.2)
                         : Color.accentColor.opacity(0.2),
                     lineWidth: 1
