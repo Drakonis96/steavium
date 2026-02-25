@@ -126,6 +126,8 @@ final class StoreViewModel: ObservableObject {
             return SteamManager()
         case .battleNet:
             return BattleNetManager()
+        case .epicGames:
+            return EpicGamesManager()
         }
     }
 
@@ -617,6 +619,8 @@ final class StoreViewModel: ObservableObject {
                     liveLogPath = "\(environment.logsPath)/steam-live.log"
                 case .battleNet:
                     liveLogPath = "\(environment.logsPath)/battlenet-live.log"
+                case .epicGames:
+                    liveLogPath = "\(environment.logsPath)/epic-live.log"
                 }
                 var lastLogSize: UInt64 = currentFileSize(at: liveLogPath)
                 let maxWaitProcess = 60   // Max seconds to wait for the process

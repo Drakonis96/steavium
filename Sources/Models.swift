@@ -5,6 +5,7 @@ import Foundation
 enum GameStoreLauncher: String, CaseIterable, Identifiable, Sendable {
     case steam
     case battleNet
+    case epicGames
 
     var id: String { rawValue }
 
@@ -14,6 +15,8 @@ enum GameStoreLauncher: String, CaseIterable, Identifiable, Sendable {
             return "Steam"
         case .battleNet:
             return "Battle.net"
+        case .epicGames:
+            return "Epic Games"
         }
     }
 
