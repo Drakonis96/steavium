@@ -39,3 +39,4 @@ protocol GameStoreManaging: Actor {
 extension SteamManager: GameStoreManaging {}
 extension BattleNetManager: GameStoreManaging {}
 extension EpicGamesManager: GameStoreManaging {}
+extension GogGalaxyManager: GameStoreManaging {}
